@@ -176,7 +176,6 @@ Launch **`Antigravity Boost (mcpv)`** from your Desktop.
 | `mcpv install` | Installs the gateway and creates the Desktop shortcut. |
 | `mcpv install --force` | Forces installation even if only 1 MCP server exists. |
 | `mcpv start` | Starts the server (Used internally by Antigravity). |
-| `mcpv link` | Updates the Vault to target the current directory as the project root. |
 | `mcpv --help` | Show help message. |
 
 ---

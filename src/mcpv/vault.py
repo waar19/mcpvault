@@ -35,40 +35,12 @@ class VaultManager:
         self.sessions = {}
 
     def install(self, force: bool = False):
-        """1. MCP Config 하이재킹"""
+        """1. MCP Config 하이재킹 (절대 경로 사용)"""
         success = self._hijack_config(force)
         if success:
             """2. 부스팅 스크립트 설치"""
             self._install_booster()
             print("✨ Installation complete. Please restart Antigravity using the new Desktop Shortcut!")
-
-    def link(self):
-        """[New] 현재 폴더를 Vault의 작업 경로(CWD)로 강제 연결합니다."""
-        if not CONFIG_FILE.exists():
-             print("❌ Config file not found. Run 'mcpv install' first.", file=sys.stderr)
-             return
-
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f: config = json.load(f)
-        except Exception as e:
-            print(f"❌ Config file is corrupted: {e}", file=sys.stderr)
-            return
-
-        servers = config.get("mcpServers", {})
-        if MY_SERVER_NAME not in servers:
-             print("❌ mcpv-proxy not found in config. Run 'mcpv install' first.", file=sys.stderr)
-             return
-        
-        # [핵심] CWD를 현재 명령어를 실행한 위치로 업데이트
-        current_cwd = os.getcwd()
-        servers[MY_SERVER_NAME]["cwd"] = current_cwd
-        
-        # 저장
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-             json.dump(config, f, indent=2)
-             
-        print(f"🔗 Vault target linked to: {current_cwd}", file=sys.stderr)
-        print("👉 Please restart Antigravity to apply changes.", file=sys.stderr)
 
     def _hijack_config(self, force: bool) -> bool:
         if not CONFIG_DIR.exists():
@@ -89,38 +61,45 @@ class VaultManager:
 
         servers = config.get("mcpServers", {})
         
+        # [Case 1] 이미 설치됨
         if len(servers) == 1 and MY_SERVER_NAME in servers:
-            # 이미 설치되어 있어도, install 명령 시 CWD는 갱신해주는 것이 사용자 경험에 좋음
-            print("✅ mcpv middleware is active. Updating CWD...", file=sys.stderr)
-            servers[MY_SERVER_NAME]["cwd"] = os.getcwd()
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2)
+            print("✅ mcpv middleware is already active.", file=sys.stderr)
             return True
 
+        # [Case 2] 1개뿐인 경우 스킵 (강제 옵션 없으면)
         if len(servers) == 1 and not force:
             print(f"⚠️  Only 1 MCP server found: {list(servers.keys())}", file=sys.stderr)
             print("   Skipping installation. Use 'mcpv install --force' to override.", file=sys.stderr)
             return False
 
+        # 백업 생성
         upstream = {k: v for k, v in servers.items() if k != MY_SERVER_NAME}
         if upstream:
             with open(BACKUP_FILE, "w", encoding="utf-8") as f:
                 json.dump({"mcpServers": upstream}, f, indent=2)
             print(f"📦 Backup created at: {BACKUP_FILE}", file=sys.stderr)
 
+        # [핵심 변경점] 환경변수 꼬임 방지: 현재 실행 중인 Python의 절대 경로 사용
+        # mcpv 명령어 대신 "python.exe -m mcpv start" 형태로 등록
+        current_python = sys.executable
+        
         my_config = {
-            "command": "mcpv",  # 전역 설치라면 PATH에 등록된 mcpv 사용
-            "args": ["start"],
-            "cwd": os.getcwd(), # 설치 시점의 경로
-            "env": {"PYTHONUNBUFFERED": "1"}
+            "command": current_python,
+            "args": ["-m", "mcpv", "start"],
+            "cwd": os.getcwd(),
+            "env": {
+                "PYTHONUNBUFFERED": "1",
+                "PYTHONPATH": os.getcwd() # 현재 설치된 위치를 모듈 경로로 명시
+            }
         }
         
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump({"mcpServers": {MY_SERVER_NAME: my_config}}, f, indent=2)
-        print("🔒 Vault locked. Config updated.", file=sys.stderr)
+        print(f"🔒 Vault locked using Python: {current_python}", file=sys.stderr)
         return True
 
     def _install_booster(self):
+        # (기존 부스터 설치 코드 유지)
         print("🚀 Installing Booster Script...", file=sys.stderr)
         if not ANTIGRAVITY_PATH.exists():
              print(f"⚠️  Antigravity path not found. Skipping booster.", file=sys.stderr)
@@ -140,6 +119,7 @@ exit
             print(f"⚠️  Booster installation failed: {e}", file=sys.stderr)
 
     def _create_shortcut_vbs(self, target, name, icon):
+        # (기존 VBS 바로가기 생성 코드 유지)
         desktop = Path(os.environ["USERPROFILE"]) / "Desktop"
         link_path = desktop / f"{name}.lnk"
         vbs_script = f'''
@@ -161,6 +141,7 @@ exit
             if vbs_file.exists(): os.remove(vbs_file)
 
     async def get_session(self, server_name):
+        # (기존 세션 관리 코드 유지)
         if server_name in self.sessions: return self.sessions[server_name]
         if not BACKUP_FILE.exists(): raise FileNotFoundError("Vault is empty.")
         with open(BACKUP_FILE, "r") as f: config = json.load(f)
