@@ -52,18 +52,21 @@
 ### 1️⃣ Booster Injection (物理加速)
 **"一行命令解锁硬件限制"**
 - **强制激活 GPU**: 注入隐藏的渲染加速标志 (`--enable-gpu-rasterization`)。
-- **绕过权限问题**: 使用 `RunAsInvoker` 绕过烦人的管理员权限请求 (Error 740)。
+- **绕过权限问题**: 放弃管理员权限以修复拖放和 UI 错误，并使用 `RunAsInvoker` 绕过烦人的管理员权限请求 (Error 740)。
 - **僵尸进程杀手**: 自动清理占用端口的幽灵进程。
 
 ### 2️⃣ Smart Valve (成本防御)
 **"为你省钱的智能钱包卫士"**
 - 检测代理习惯性请求的巨大上下文数据 (`repomix`)。
-- **只发送第一次**，从第二次开始仅回复 10 Token 的 **"已缓存 (Already cached)"** 消息。
+- **首次请求：允许**（提供完整上下文）。
+- **后续请求：拦截**（仅回复 10 Token 的 **“已缓存”** 消息）。
 - 物理阻断意外的 Token 炸弹。
 
 ### 3️⃣ Gateway Hijacking (安全金库)
 **"不再为复杂的配置烦恼"**
+- **零延迟启动**：仅在代理实际请求时扫描目录。大代码库也不会超时。
 - 自动将现有的复杂 MCP 设置迁移到安全的金库 (Vault)。
+- 原始配置安全备份至 `mcp_config.original.json`。
 - 代理只与 `mcpv` 对话，但所有工具在后台都能完美运行。
 
 <br>
@@ -104,6 +107,34 @@
   }
 }
 ```
+
+
+<br>
+
+---
+
+## 📝 推荐系统规则 (Recommended System Rule)
+
+**请将此规则添加到代理的系统提示词（如 .cursorrules, .antigravityrules）中。**  
+这能确保代理正确使用 `mcpv` 而不会产生冗余请求。
+
+> **[System Instruction]**
+>
+> **Session Start**: At the very beginning of the conversation, you MUST call `get_initial_context` tool immediately. This is your only way to understand the project structure.
+>
+> **Context Management**: Do NOT call `get_initial_context` again in the same session unless the user explicitly asks for a "refresh" with `force=True`. The proxy will block redundant requests.
+>
+> **File Access**: After reading the initial context map, use `read_file` to inspect specific files needed for the task.
+
+<br>
+
+---
+
+## 🛠️ 技术栈 (Tech Stack)
+
+- **Python & uv**: 使用 `uv` 构建干净、隔离的虚拟环境，防止依赖地狱。
+- **FastMCP**: 基于 FastMCP 框架构建，以此获得极高的速度。
+- **Gateway Pattern**: 备份原始配置并通过代理安全地路由流量。
 
 <br>
 

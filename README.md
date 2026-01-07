@@ -52,18 +52,21 @@ Have you ever felt this while using AI Agents (Antigravity, Cursor)?
 ### 1️⃣ Booster Injection (Physical Acceleration)
 **"Unlock hardware limits with one line"**
 - **Forced GPU Activation**: Injects hidden rendering acceleration flags (`--enable-gpu-rasterization`).
-- **Permission Bypass**: Bypasses annoying admin permission requests (Error 740) using `RunAsInvoker`.
+- **Permission Bypass**: Drops Admin rights to fix drag-and-drop & UI bugs, and bypasses permission requests (Error 740) using `RunAsInvoker`.
 - **Zombie Process Killer**: Automatically cleans up ghost processes occupying ports.
 
 ### 2️⃣ Smart Valve (Cost Defense)
 **"Smart wallet protector that saves for you"**
 - Detects the massive context data (`repomix`) that agents habitually request.
-- **Sends only the first time**, and replies with a 10-token **"Already cached"** message from the second time onwards.
+- **First request: Allowed** (Full context provided).
+- **Subsequent requests: Blocked** with a 10-token **"Already cached"** message.
 - Physically blocks accidental token bombs.
 
 ### 3️⃣ Gateway Hijacking (Secure Vault)
 **"Stop struggling with complex configs"**
+- **Zero-Latency Startup**: Only scans directories when the agent actually requests them. No timeouts on large repos.
 - Automatically migrates existing complex MCP settings to a secure Vault.
+- Original config is safely backed up to `mcp_config.original.json`.
 - The agent talks only to `mcpv`, but all tools work perfectly behind the scenes.
 
 <br>
@@ -104,6 +107,33 @@ Verified MCP server configuration used by the developer. It creates the best syn
   }
 }
 ```
+
+<br>
+
+---
+
+## � Recommended System Rule
+
+**Add this rule to your agent's system prompt (e.g., .cursorrules, .antigravityrules).**  
+This ensures the agent uses `mcpv` correctly without redundant requests.
+
+> **[System Instruction]**
+>
+> **Session Start**: At the very beginning of the conversation, you MUST call `get_initial_context` tool immediately. This is your only way to understand the project structure.
+>
+> **Context Management**: Do NOT call `get_initial_context` again in the same session unless the user explicitly asks for a "refresh" with `force=True`. The proxy will block redundant requests.
+>
+> **File Access**: After reading the initial context map, use `read_file` to inspect specific files needed for the task.
+
+<br>
+
+---
+
+## �🛠️ Tech Stack
+
+- **Python & uv**: Uses `uv` for clean, isolated virtual environments to prevent dependency hell.
+- **FastMCP**: Built on top of the FastMCP framework for speed.
+- **Gateway Pattern**: It backs up your original config and routes traffic through the proxy securely.
 
 <br>
 

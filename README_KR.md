@@ -53,18 +53,21 @@ AI 에이전트(Antigravity, Cursor)를 쓰다가 이런 경험 없으신가요?
 ### 1️⃣ Booster Injection (물리적 가속)
 **"명령어 한 줄로 하드웨어 봉인 해제"**
 - **GPU 강제 활성화**: 숨겨진 렌더링 가속 플래그(`--enable-gpu-rasterization`)를 주입합니다.
-- **권한 문제 해결**: 귀찮은 관리자 권한 요구(Error 740)를 `RunAsInvoker`로 우회합니다.
+- **권한 문제 해결**: 관리자 권한을 해제하여 드래그 앤 드롭 및 UI 버그를 수정하고, `RunAsInvoker`로 성가신 권한 요청(Error 740)을 우회합니다.
 - **좀비 프로세스 킬**: 포트를 점유하는 유령 프로세스를 자동으로 청소합니다.
 
 ### 2️⃣ Smart Valve (비용 방어)
 **"알아서 아껴주는 똑똑한 지갑 지킴이"**
 - 에이전트가 습관적으로 요청하는 거대한 문맥 데이터(`repomix`)를 감지합니다.
-- **첫 번째만 전송**, 두 번째부터는 **"이미 가지고 있음"** 이라는 10 토큰짜리 메시지로 퉁칩니다.
+- **첫 번째 요청: 허용** (전체 문맥 제공).
+- **이후 요청: 차단** (10 토큰짜리 **"Already cached"** 메시지 반환).
 - 실수로 인한 토큰 폭탄을 원천 봉쇄합니다.
 
 ### 3️⃣ Gateway Hijacking (안전한 금고)
 **"복잡한 설정은 이제 그만"**
+- **Zero-Latency Startup**: 에이전트가 실제로 요청할 때만 디렉토리를 스캔합니다. 대규모 레포지토리에서도 타임아웃이 발생하지 않습니다.
 - 기존의 복잡한 MCP 설정을 안전한 금고(Vault)로 자동 이전합니다.
+- 원본 설정은 `mcp_config.original.json`에 안전하게 백업됩니다.
 - 에이전트는 아무것도 모른 채 `mcpv`와 대화하지만, 모든 도구는 완벽하게 작동합니다.
 
 <br>
@@ -105,6 +108,34 @@ AI 에이전트(Antigravity, Cursor)를 쓰다가 이런 경험 없으신가요?
   }
 }
 ```
+
+
+<br>
+
+---
+
+## 📝 권장 시스템 규칙 (Recommended System Rule)
+
+**이 규칙을 에이전트의 시스템 프롬프트(.cursorrules, .antigravityrules 등)에 추가하세요.**  
+에이전트가 중복 요청 없이 `mcpv`를 올바르게 사용하도록 보장합니다.
+
+> **[System Instruction]**
+>
+> **Session Start**: At the very beginning of the conversation, you MUST call `get_initial_context` tool immediately. This is your only way to understand the project structure.
+>
+> **Context Management**: Do NOT call `get_initial_context` again in the same session unless the user explicitly asks for a "refresh" with `force=True`. The proxy will block redundant requests.
+>
+> **File Access**: After reading the initial context map, use `read_file` to inspect specific files needed for the task.
+
+<br>
+
+---
+
+## 🛠️ 기술 스택 (Tech Stack)
+
+- **Python & uv**: `uv`를 사용하여 의존성 지옥을 방지하고 깨끗하고 격리된 가상 환경을 사용합니다.
+- **FastMCP**: 빠른 속도를 위해 FastMCP 프레임워크 기반으로 구축되었습니다.
+- **Gateway Pattern**: 원본 설정을 백업하고 프록시를 통해 트래픽을 안전하게 라우팅합니다.
 
 <br>
 
