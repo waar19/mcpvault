@@ -13,7 +13,7 @@
 </div>
 
 <div align="right">
-  <a href="README.md">🇺🇸 English</a> | <a href="README_KR.md">🇰🇷 한국어</a>
+  <a href="README.md">🇺🇸 English</a> | <a href="README_KR.md">🇰🇷 한국어</a> | <a href="README_RU.md">🇷🇺 Русский</a>
 </div>
 
 <br>
