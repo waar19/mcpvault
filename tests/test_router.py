@@ -25,7 +25,8 @@ class TestToolResolution:
                 mock_session.return_value.call_tool = AsyncMock(return_value=mock_result)
                 
                 from mcpv.server import run_tool
-                result = await run_tool("query-docs", {"query": "test"})
+                # FastMCP wraps functions - access the underlying function via .fn
+                result = await run_tool.fn("query-docs", {"query": "test"})
                 
                 assert "Result" in result
     
@@ -43,7 +44,7 @@ class TestToolResolution:
         
         with patch('mcpv.server.TOOL_REGISTRY', mock_registry):
             from mcpv.server import run_tool
-            result = await run_tool("context7", {})
+            result = await run_tool.fn("context7", {})
             
             assert "SERVER name" in result
             assert "query-docs" in result
@@ -68,7 +69,7 @@ class TestToolResolution:
         
         with patch('mcpv.server.TOOL_REGISTRY', mock_registry):
             from mcpv.server import run_tool
-            result = await run_tool("query", {})
+            result = await run_tool.fn("query", {})
             
             assert "Did you mean" in result
             assert "query-docs" in result or "query-code" in result
@@ -87,7 +88,7 @@ class TestToolResolution:
         
         with patch('mcpv.server.TOOL_REGISTRY', mock_registry):
             from mcpv.server import run_tool
-            result = await run_tool("completely-unknown", {})
+            result = await run_tool.fn("completely-unknown", {})
             
             assert "get_initial_context" in result
 
@@ -100,7 +101,7 @@ class TestReadFileSecurity:
         with patch('mcpv.server.ROOT_DIR', tmp_path):
             from mcpv.server import read_file
             
-            result = read_file("../../etc/passwd")
+            result = read_file.fn("../../etc/passwd")
             
             assert "Access Denied" in result
     
@@ -119,7 +120,7 @@ class TestReadFileSecurity:
         with patch('mcpv.server.ROOT_DIR', tmp_path):
             from mcpv.server import read_file
             
-            result = read_file("link.txt")
+            result = read_file.fn("link.txt")
             
             assert "Symlinks not allowed" in result
     
@@ -131,7 +132,7 @@ class TestReadFileSecurity:
         with patch('mcpv.server.ROOT_DIR', tmp_path):
             from mcpv.server import read_file
             
-            result = read_file("test.txt")
+            result = read_file.fn("test.txt")
             
             assert result == "Hello, World!"
     
@@ -140,6 +141,7 @@ class TestReadFileSecurity:
         with patch('mcpv.server.ROOT_DIR', tmp_path):
             from mcpv.server import read_file
             
-            result = read_file("nonexistent.txt")
+            result = read_file.fn("nonexistent.txt")
             
             assert "File not found" in result
+
