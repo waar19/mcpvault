@@ -1,0 +1,918 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where comments have been removed, content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Code comments have been removed from supported file types
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+check_bytes.py
+convert.py
+create_toml.py
+force_clean.py
+Hello.md
+init.ps1
+pyproject.toml
+README_CN.md
+README_KR.md
+README_RU.md
+README.md
+reinstall.ps1
+revert.py
+src/mcpv/__init__.py
+src/mcpv/__main__.py
+src/mcpv/dashboard.py
+src/mcpv/main.py
+src/mcpv/server.py
+src/mcpv/valve.py
+src/mcpv/vault.py
+validate_toml.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="check_bytes.py">
+content = f.read(20)
+</file>
+
+<file path="convert.py">
+GITHUB_PAT = ""  # 사용자의 PAT (비워두면 실행 시 입력받음)
+REPO_URL = "https://github.com/thekeunpie-hash/mcpvault"
+OUTPUT_FILE = "mcpv_Full_Code.md"
+⋮----
+IGNORE_PATTERNS = [
+⋮----
+def remove_readonly(func, path, _)
+⋮----
+def clone_repo(repo_url, pat, target_dir)
+⋮----
+auth_url = repo_url.replace("https://", f"https://{pat}@")
+⋮----
+def is_ignored(path, names)
+⋮----
+ignored = set()
+⋮----
+def merge_files(source_dir, output_file)
+⋮----
+file_path = os.path.join(root, file)
+relative_path = os.path.relpath(file_path, source_dir)
+⋮----
+content = infile.read()
+⋮----
+def main()
+⋮----
+temp_dir = "temp_repo_clone"
+⋮----
+pat = GITHUB_PAT
+⋮----
+pat = input("GitHub PAT를 입력하세요: ").strip()
+</file>
+
+<file path="create_toml.py">
+content = """[project]
+</file>
+
+<file path="force_clean.py">
+content = b"""[project]
+</file>
+
+<file path="Hello.md">
+Hi everyone,
+I've been using AI Agents (specifically Antigravity) heavily for coding, but I ran into three major frustrations that I think many of you might recognize:
+Infinite Loading: Without GPU, Antigravity went too slow. In my case it went 58s unresponsive per 1 min. 
+Context Bloat: The agent keeps requesting the full codebase context repeatedly whenever it loads MCP's, making my MCP servers unresponsive.
+Agent/UI Lag: On Windows, the agent responses kept saying "Continue" repeatedly because of 1, 2.
+I couldn't find a tool that solved all of this, so I built MCP Vault (mcpv).
+🔗 Repo:https://github.com/thekeunpie-hash/mcpvault (MIT Licensed)
+🚀 What does it do?
+It acts as a "Smart Middleware" between your Agent and your actual tools. It hijacks the mcp_config.json safely and optimizes the traffic.(All of MCPs will be kept exactly identically on C:\Users\[Username]\.gemini\antigravity\mcp_config.original.json)
+1. Zero-Latency Startup (Lazy Loading) Instead of scanning files at boot, mcpv starts instantly (<0.1s). It only scans directories when the agent actually requests them. No timeouts on large repos.
+2. Smart Context Valve It detects if the agent asks for a massive context dump (like a full repo summary) more than once in a session.
+First request: Allowed (Full context provided).
+Subsequent requests: Blocked with a "Context already cached" message (only ~20 tokens used). This physically prevents the agent from wasting tokens on duplicate data.
+[System Instruction]
+
+
+Session Start: At the very beginning of the conversation, you MUST call get_initial_context tool immediately. This is your only way to understand the project structure.
+
+
+Context Management: Do NOT call get_initial_context again in the same session unless the user explicitly asks for a "refresh" with force=True. The proxy will block redundant requests.
+
+
+File Access: After reading the initial context map, use read_file to inspect specific files needed for the task.
+This Antigravity rule needs to be added though.
+
+3. Booster Injection (Windows/Antigravity) It auto-generates an optimized launcher script that:
+Forces GPU rasterization & zero-copy flags.
+Drops Admin rights (fixes drag-and-drop & UI bugs).
+Kills zombie processes on port 26646 automatically.
+The shortcut with injected script can be found on the desktop after installation.
+🛠️ Tech Stack
+Python & uv: Uses uv for clean, isolated virtual environments to prevent dependency hell.
+FastMCP: Built on top of the FastMCP framework for speed.
+Gateway Pattern: It backs up your original config and routes traffic through the proxy securely.
+📦 Installation
+It's available on PyPI too.
+Bash
+pip install mcpv
+mcpv install
+Currently, it's optimized for Windows and Antigravity, but the core logic (Lazy Loading/Smart Valve) is applicable to any MCP-compliant agent.
+I'd love to hear your feedback or feature requests!
+</file>
+
+<file path="README_RU.md">
+# ⚡ MCP Vault (`mcpv`)
+
+> **Идеальный ускоритель производительности для AI-агентов**  
+> _"Снижает системные задержки на 99%, устраняет время загрузки и сокращает расходы на токены на 90%."_
+
+<div align="center">
+
+![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10+-F7CA3F.svg?style=flat-square&logo=python&logoColor=black)
+![Platform](https://img.shields.io/badge/OS-Windows-0078D6.svg?style=flat-square&logo=windows&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Accelerated-brightgreen.svg?style=flat-square)
+
+</div>
+
+<div align="right">
+  <a href="README.md">🇺🇸 English</a> | <a href="README_KR.md">🇰🇷 한국어</a> | <a href="README_CN.md">🇨🇳 中文</a>
+</div>
+
+<br>
+
+> [!CAUTION]
+> **⚠️ Предупреждение о совместимости (Compatibility Warning)**<br>
+> В настоящее время этот проект поддерживает ТОЛЬКО ОС **Windows** и агентную среду **Antigravity**.
+
+<br>
+
+## ❓ Почему `mcpv`?
+
+Вы когда-нибудь чувствовали это при использовании AI-агентов (Antigravity, Cursor)?
+> *"Почему так тяжело?"*  
+> *"Опять зависло..."*  
+> *"Почему расходы на токены такие высокие?"*
+
+`mcpv` - это не просто инструмент. Это **Турбо-двигатель** для вашего агента.
+
+<br>
+
+### 🏎️ Ошеломляющая разница в производительности
+
+| Функция | 😫 Без `mcpv` (До) | ⚡ С `mcpv` (После) | 📈 Эффект |
+| :--- | :--- | :--- | :--- |
+| **Скорость** | Нет GPU, Лагающий UI | **Принудительное ускорение GPU, Плавность** | **100x** Ощущаемая скорость |
+| **Загрузка** | Ожидание 60с+ каждый раз | **0.1с Мгновенный старт** (Lazy Load) | **Ноль** Задержки |
+| **Расходы** | Отправка полного кода каждый раз | **Авто-блокировка дубликатов** (Smart Cache) | **90%** Экономия |
+
+<br>
+
+---
+
+## ✨ 3 ключевые функции
+
+### 1️⃣ Инъекция ускорителя (Booster Injection - Физическое ускорение)
+**"Снятие аппаратных ограничений одной строкой"**
+- **Принудительная активация GPU**: Внедряет скрытые флаги ускорения рендеринга (`--enable-gpu-rasterization`).
+- **Обход прав доступа**: Сбрасывает права администратора для исправления багов drag-and-drop и UI, а также обходит запросы прав (Ошибка 740) с помощью `RunAsInvoker`.
+- **Убийца зомби-процессов**: Автоматически очищает призрачные процессы, занимающие порты.
+
+### 2️⃣ Умный клапан (Smart Valve - Защита расходов)
+**"Умный защитник кошелька, который экономит за вас"**
+- Обнаруживает массивные контекстные данные (`repomix`), которые агенты привыкли запрашивать.
+- **Первый запрос: Разрешен** (Предоставляется полный контекст).
+- **Последующие запросы: Заблокированы** сообщением **'Already cached'** (10 токенов).
+- Физически блокирует случайные бомбы токенов.
+
+### 3️⃣ Перехват шлюза (Gateway Hijacking - Безопасное хранилище)
+**"Перестаньте мучиться со сложными настройками"**
+- **Мгновенный запуск (Zero-Latency)**: Сканирует директории только когда агент их запрашивает. Нет таймаутов на больших репозиториях.
+- Автоматически переносит существующие сложные настройки MCP в безопасное хранилище (Vault).
+- Оригинальный конфиг безопасно сохраняется в `mcp_config.original.json`.
+- Агент общается только с `mcpv`, но все инструменты прекрасно работают в фоновом режиме.
+
+<br>
+
+---
+
+## 🛠️ Проверенная рекомендуемая настройка (Verified Setup)
+
+Проверенная конфигурация MCP-сервера, используемая разработчиком. Создает лучшую синергию при использовании с `mcpv`.
+
+```json
+{
+  "mcpServers": {
+    "rube": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://rube.app/mcp"]
+    },
+    "open-aware": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://open-aware.qodo.ai/mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "PUT_IN_YOUR_API_KEY_HERE"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "mcp-server-neon": {
+      "disabled": false,
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.neon.tech/sse"],
+      "env": {
+        "NEON_API_KEY": "NEVERCHANGE_DONT_PUT_IN_ANYTHING_ELSE_THAN_ME_HERE"
+      }
+    }
+  }
+}
+</file>
+
+<file path="reinstall.ps1">
+Stop-Process -Name "python" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "mcpv" -Force -ErrorAction SilentlyContinue
+
+# 1. 패키지 재설치 (라이브러리 업데이트)
+uv pip install . --system --reinstall
+
+
+# python -m mcpv install --force
+</file>
+
+<file path="revert.py">
+BACKUP_FILE = "mcpv_Full_Code.md"
+⋮----
+def normalize_content(content)
+⋮----
+def restore_if_changed()
+⋮----
+lines = f.readlines()
+⋮----
+current_file = None
+content_lines = []
+in_code_block = False
+⋮----
+match = file_pattern.match(line)
+⋮----
+current_file = match.group(1).strip()
+⋮----
+in_code_block = True
+⋮----
+backup_content = "".join(content_lines)
+⋮----
+# 로컬 경로 설정
+full_path = os.path.join(".", current_file)
+dir_name = os.path.dirname(full_path)
+⋮----
+# 폴더가 없으면 생성
+⋮----
+# 로컬 파일 읽기 (비교용)
+local_content = None
+⋮----
+local_content = lf.read()
+⋮----
+action = "NEW"
+⋮----
+action = "UPDATE"
+⋮----
+action = "SKIP"
+⋮----
+# print(f"💨 [스킵] {current_file}") # 너무 많으면 주석 처리
+⋮----
+# 상태 초기화
+⋮----
+# 4. 코드 블록 내부 내용 수집
+</file>
+
+<file path="src/mcpv/__init__.py">
+
+</file>
+
+<file path="src/mcpv/__main__.py">
+
+</file>
+
+<file path="src/mcpv/dashboard.py">
+
+</file>
+
+<file path="src/mcpv/valve.py">
+class SmartValve
+⋮----
+def __init__(self)
+⋮----
+def check(self, force: bool) -> tuple[bool, str]
+⋮----
+"You already have the context map. Do not request it again.\n"
+"Use 'read_file' for specific details."
+</file>
+
+<file path="validate_toml.py">
+data = tomllib.load(f)
+⋮----
+# Print hex of first 50 bytes
+</file>
+
+<file path=".gitignore">
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/
+.venv/
+env/
+.idea/
+.vscode/
+.env
+upload.ps1
+</file>
+
+<file path="pyproject.toml">
+[project]
+name = "mcpv"
+version = "0.2.8"
+description = "MCP Vault: Secure Gateway & Booster for Antigravity"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=0.1.0",
+    "mcp>=1.0.0",
+    "typer>=0.9.0",
+]
+
+[project.scripts]
+mcpv = "mcpv.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+</file>
+
+<file path="README_CN.md">
+# ⚡ MCP Vault (`mcpv`)
+
+> **AI 代理 (AI Agents) 的终极性能加速器**  
+> _"系统延迟减少 99%，加载时间归零，Token 成本降低 90%。"_
+
+<div align="center">
+
+![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10+-F7CA3F.svg?style=flat-square&logo=python&logoColor=black)
+![Platform](https://img.shields.io/badge/OS-Windows-0078D6.svg?style=flat-square&logo=windows&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Accelerated-brightgreen.svg?style=flat-square)
+
+</div>
+
+<div align="right">
+  <a href="README.md">🇺🇸 English</a> | <a href="README_KR.md">🇰🇷 한국어</a> | <a href="README_RU.md">🇷🇺 Русский</a>
+</div>
+
+<br>
+
+> [!CAUTION]
+> **⚠️ 兼容性警告 (Compatibility Warning)**<br>
+> 目前本项目仅支持 **Windows** 操作系统和 **Antigravity** 代理环境。
+
+<br>
+
+## ❓ 为什么选择 `mcpv`？
+
+在使用 AI 代理（Antigravity, Cursor）时，你是否有过这样的体验？
+> *"为什么这么卡？"*  
+> *"又卡死了..."*  
+> *"为什么 Token 费用这么高？"*
+
+`mcpv` 不仅仅是一个工具。它是你代理的 **涡轮引擎 (Turbo Engine)**。
+
+<br>
+
+### 🏎️ 压倒性的性能差异
+
+| 功能 | 😫 没有 `mcpv` (Before) | ⚡ 安装 `mcpv` (After) | 📈 效果 |
+| :--- | :--- | :--- | :--- |
+| **速度** | 无 GPU 加速，UI 卡顿 | **强制 GPU 加速，流畅** | **100倍** 体感提升 |
+| **加载** | 每次等待 10秒+ | **0.1秒 瞬间启动** (Lazy Load) | **零** 等待 |
+| **成本** | 每次发送全部代码 | **自动拦截重复项** (Smart Cache) | **90%** 节省 |
+
+<br>
+
+---
+
+## ✨ 3大核心功能
+
+### 1️⃣ Booster Injection (物理加速)
+**"一行命令解锁硬件限制"**
+- **强制激活 GPU**: 注入隐藏的渲染加速标志 (`--enable-gpu-rasterization`)。
+- **绕过权限问题**: 放弃管理员权限以修复拖放和 UI 错误，并使用 `RunAsInvoker` 绕过烦人的管理员权限请求 (Error 740)。
+- **僵尸进程杀手**: 自动清理占用端口的幽灵进程。
+
+### 2️⃣ Smart Valve (成本防御)
+**"为你省钱的智能钱包卫士"**
+- 检测代理习惯性请求的巨大上下文数据 (`repomix`)。
+- **首次请求：允许**（提供完整上下文）。
+- **后续请求：拦截**（仅回复 10 Token 的 **“已缓存”** 消息）。
+- 物理阻断意外的 Token 炸弹。
+
+### 3️⃣ Gateway Hijacking (安全金库)
+**"不再为复杂的配置烦恼"**
+- **零延迟启动**：仅在代理实际请求时扫描目录。大代码库也不会超时。
+- 自动将现有的复杂 MCP 设置迁移到安全的金库 (Vault)。
+- 原始配置安全备份至 `mcp_config.original.json`。
+- 代理只与 `mcpv` 对话，但所有工具在后台都能完美运行。
+
+<br>
+
+---
+
+## 🛠️ 经过验证的推荐设置 (Verified Setup)
+
+开发者亲测的 MCP 服务器配置。与其一起使用时，`mcpv` 能发挥最佳协同效应。
+
+```json
+{
+  "mcpServers": {
+    "rube": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://rube.app/mcp"]
+    },
+    "open-aware": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://open-aware.qodo.ai/mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "PUT_IN_YOUR_API_KEY_HERE"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "mcp-server-neon": {
+      "disabled": false,
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.neon.tech/sse"],
+      "env": {
+        "NEON_API_KEY": "NEVERCHANGE_DONT_PUT_IN_ANYTHING_ELSE_THAN_ME_HERE"
+      }
+    }
+  }
+}
+</file>
+
+<file path="README_KR.md">
+# ⚡ MCP Vault (`mcpv`)
+
+> **The Ultimate Performance Booster for AI Agents**  
+> _"시스템 렉은 99% 줄이고, 로딩은 없애고, 토큰 비용은 1/10로."_
+
+<div align="center">
+
+![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10+-F7CA3F.svg?style=flat-square&logo=python&logoColor=black)
+![Platform](https://img.shields.io/badge/OS-Windows-0078D6.svg?style=flat-square&logo=windows&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Accelerated-brightgreen.svg?style=flat-square)
+
+</div>
+
+<div align="right">
+  <a href="README.md">🇺🇸 English</a> | <a href="README_CN.md">🇨🇳 中文</a> | <a href="README_RU.md">🇷🇺 Русский</a>
+</div>
+
+<br>
+
+> [!CAUTION]
+> **⚠️ 호환성 주의 (Compatibility Warning)**<br>
+> 현재 이 프로젝트는 **Windows** 운영체제와 **Antigravity (안티그래비티)** 에이전트 환경만 지원합니다.<br>
+> _(Currently, this project ONLY supports **Windows** and **Antigravity**.)_
+
+<br>
+
+## ❓ 왜 `mcpv` 인가요?
+
+AI 에이전트(Antigravity, Cursor)를 쓰다가 이런 경험 없으신가요?
+> *"왜 이렇게 무겁지?"*  
+> *"또 멈췄네..."*  
+> *"토큰 비용이 왜 이렇게 많이 나와?"*
+
+`mcpv`는 단순한 도구가 아닙니다. 당신의 에이전트를 위한 **터보 엔진**입니다.
+
+<br>
+
+### 🏎️ 압도적인 성능 차이
+
+| 구분 | 😫 `mcpv` 없음 (Before) | ⚡ `mcpv` 장착 (After) | 📈 효과 |
+| :--- | :--- | :--- | :--- |
+| **속도** | GPU 미사용, UI 버벅임 | **GPU 강제 가속, 쾌적함** | **100배** 체감 향상 |
+| **로딩** | 매번 수십 초 대기 | **0.1초 즉시 실행** (Lazy Load) | **대기시간 0초** |
+| **비용** | 매번 전체 코드 전송 | **중복 자동 차단** (Smart Cache) | **90%** 절감 |
+
+<br>
+
+---
+
+## ✨ 3가지 핵심 무기
+
+### 1️⃣ Booster Injection (물리적 가속)
+**"명령어 한 줄로 하드웨어 봉인 해제"**
+- **GPU 강제 활성화**: 숨겨진 렌더링 가속 플래그(`--enable-gpu-rasterization`)를 주입합니다.
+- **권한 문제 해결**: 관리자 권한을 해제하여 드래그 앤 드롭 및 UI 버그를 수정하고, `RunAsInvoker`로 성가신 권한 요청(Error 740)을 우회합니다.
+- **좀비 프로세스 킬**: 포트를 점유하는 유령 프로세스를 자동으로 청소합니다.
+
+### 2️⃣ Smart Valve (비용 방어)
+**"알아서 아껴주는 똑똑한 지갑 지킴이"**
+- 에이전트가 습관적으로 요청하는 거대한 문맥 데이터(`repomix`)를 감지합니다.
+- **첫 번째 요청: 허용** (전체 문맥 제공).
+- **이후 요청: 차단** (10 토큰짜리 **"Already cached"** 메시지 반환).
+- 실수로 인한 토큰 폭탄을 원천 봉쇄합니다.
+
+### 3️⃣ Gateway Hijacking (안전한 금고)
+**"복잡한 설정은 이제 그만"**
+- **Zero-Latency Startup**: 에이전트가 실제로 요청할 때만 디렉토리를 스캔합니다. 대규모 레포지토리에서도 타임아웃이 발생하지 않습니다.
+- 기존의 복잡한 MCP 설정을 안전한 금고(Vault)로 자동 이전합니다.
+- 원본 설정은 `mcp_config.original.json`에 안전하게 백업됩니다.
+- 에이전트는 아무것도 모른 채 `mcpv`와 대화하지만, 모든 도구는 완벽하게 작동합니다.
+
+<br>
+
+---
+
+## 🛠️ 검증된 추천 세팅 (Verified Setup)
+
+개발자가 직접 사용 중인 검증된 MCP 서버 구성입니다. `mcpv`와 함께 사용했을 때 최고의 시너지를 냅니다.
+
+```json
+{
+  "mcpServers": {
+    "rube": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://rube.app/mcp"]
+    },
+    "open-aware": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://open-aware.qodo.ai/mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "PUT_IN_YOUR_API_KEY_HERE"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "mcp-server-neon": {
+      "disabled": false,
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.neon.tech/sse"],
+      "env": {
+        "NEON_API_KEY": "NEVERCHANGE_DONT_PUT_IN_ANYTHING_ELSE_THAN_ME_HERE"
+      }
+    }
+  }
+}
+</file>
+
+<file path="src/mcpv/main.py">
+app = typer.Typer()
+⋮----
+@app.command()
+def start()
+</file>
+
+<file path="src/mcpv/server.py">
+CONFIG_DIR = Path.home() / ".gemini" / "antigravity"
+LOG_DIR = CONFIG_DIR
+⋮----
+LOG_FILE = LOG_DIR / "mcpv_debug.log"
+ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
+⋮----
+root_logger = logging.getLogger()
+⋮----
+logger = logging.getLogger("mcpv-server")
+⋮----
+content = ROOT_PATH_FILE.read_text(encoding="utf-8").strip()
+ROOT_DIR = Path(content).resolve()
+source = "FILE(root_path.txt)"
+⋮----
+ROOT_DIR = Path.cwd().resolve()
+source = f"CWD(File Read Error: {e})"
+⋮----
+source = "CWD(File Not Found)"
+⋮----
+IGNORE_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "build"}
+ALLOWED_EXTENSIONS = {".py", ".js", ".ts", ".md", ".json", ".txt", ".html", ".css", ".java", ".c", ".cpp", ".rs", ".go"}
+⋮----
+mcp = FastMCP("mcpv", log_level="DEBUG")
+⋮----
+async def _scan_upstream_tools() -> str
+⋮----
+report = ["=== 🛠️ AVAILABLE EXTERNAL TOOLS (Auto-Injected) ==="]
+⋮----
+config = json.load(f)
+⋮----
+servers = config.get("mcpServers", {})
+active_servers = [k for k, v in servers.items() if not v.get("disabled")]
+⋮----
+tasks = []
+⋮----
+sessions = await asyncio.gather(*tasks, return_exceptions=True)
+⋮----
+# 2. 도구 목록 조회
+# 타임아웃 5초 (너무 오래 걸리면 스킵)
+result = await asyncio.wait_for(session.list_tools(), timeout=5.0)
+⋮----
+# 인자 스키마 요약
+props = list(t.inputSchema.get("properties", {}).keys())
+args_str = ", ".join(props) if props else "None"
+⋮----
+# 설명이 너무 길면 첫 줄만
+desc = t.description.split('\n')[0][:100]
+⋮----
+report.append("") # 공백
+⋮----
+@mcp.tool()
+async def get_initial_context(force: bool = False) -> str
+⋮----
+# 1. 밸브 체크 (중복 실행 방지)
+⋮----
+# 2. [NEW] 모든 업스트림 서버 스캔 & 도구 명세 확보
+⋮----
+tools_info = await _scan_upstream_tools()
+⋮----
+# 3. Repomix 실행 (프로젝트 파일 구조)
+⋮----
+cmd = [
+⋮----
+env = os.environ.copy()
+⋮----
+result = subprocess.run(
+⋮----
+repo_context = ""
+⋮----
+repo_context = f"Repomix Error: {result.stderr}"
+⋮----
+repo_context = result.stdout
+⋮----
+# 4. 최종 컨텍스트 조립
+final_output = (
+⋮----
+output_len = len(final_output)
+⋮----
+@mcp.tool()
+async def use_upstream_tool(server_name: str, tool_name: str, args: dict = {}) -> str
+⋮----
+"""Routes a command to a specific server in the vault."""
+⋮----
+session = await manager.get_session(server_name)
+# 세션이 없으면(get_session 실패) 위에서 에러가 뜸
+⋮----
+# 도구 실행
+res = await session.call_tool(tool_name, args)
+⋮----
+# 결과 파싱
+output = []
+⋮----
+@mcp.tool()
+def list_directory(path: str = ".") -> str
+⋮----
+"""Secure, Lazy file listing."""
+⋮----
+full = (ROOT_DIR / path).resolve()
+⋮----
+out = []
+⋮----
+@mcp.tool()
+def read_file(path: str) -> str
+</file>
+
+<file path="src/mcpv/vault.py">
+StdioServerParameters = Any
+⋮----
+HOME_DIR = Path.home()
+CONFIG_DIR = HOME_DIR / ".gemini" / "antigravity"
+CONFIG_FILE = CONFIG_DIR / "mcp_config.json"
+BACKUP_FILE = CONFIG_DIR / "mcp_config.original.json"
+ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
+MY_SERVER_NAME = "mcpv-proxy"
+⋮----
+ANTIGRAVITY_PATH = Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Antigravity"
+ANTIGRAVITY_EXE = ANTIGRAVITY_PATH / "Antigravity.exe"
+BOOSTER_SCRIPT = CONFIG_DIR / "boost_launcher.bat"
+⋮----
+class VaultManager
+⋮----
+def __init__(self)
+⋮----
+def install(self, force: bool = False)
+⋮----
+success = self._hijack_config(force)
+⋮----
+def _hijack_config(self, force: bool) -> bool
+⋮----
+with open(CONFIG_FILE, "r", encoding="utf-8") as f: config = json.load(f)
+⋮----
+config = {"mcpServers": {}}
+⋮----
+servers = config.get("mcpServers", {})
+other_servers = {k: v for k, v in servers.items() if k != MY_SERVER_NAME}
+⋮----
+# [핵심] 현재 경로 저장
+current_python = sys.executable
+current_cwd = os.getcwd()
+⋮----
+my_config = {
+⋮----
+def _install_booster(self)
+⋮----
+batch_content = f"""@echo off
+⋮----
+def _create_shortcut_vbs(self, target, name, icon)
+⋮----
+desktop = Path(os.environ["USERPROFILE"]) / "Desktop"
+link_path = desktop / f"{name}.lnk"
+vbs_script = f'''
+vbs_file = CONFIG_DIR / "create_shortcut.vbs"
+⋮----
+async def get_session(self, server_name)
+⋮----
+with open(BACKUP_FILE, "r") as f: config = json.load(f)
+srv = config["mcpServers"].get(server_name)
+⋮----
+# [수정됨] 상류 서버 실행 시 CI=true 강제 주입
+upstream_env = os.environ.copy()
+⋮----
+cmd = srv["command"]
+resolved_cmd = shutil.which(cmd)
+⋮----
+resolved_cmd = shutil.which(f"{cmd}.cmd") or shutil.which(f"{cmd}.exe")
+⋮----
+final_cmd = resolved_cmd if resolved_cmd else cmd
+⋮----
+params = StdioServerParameters(
+⋮----
+session = await self.stack.enter_async_context(ClientSession(read, write))
+⋮----
+async def cleanup(self)
+⋮----
+manager = VaultManager()
+</file>
+
+<file path="README.md">
+# ⚡ MCP Vault (`mcpv`)
+
+> **The Ultimate Performance Booster for AI Agents**  
+> _"Reduce system lag by 99%, eliminate loading times, and cut token costs by 90%."_
+
+<div align="center">
+
+![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10+-F7CA3F.svg?style=flat-square&logo=python&logoColor=black)
+![Platform](https://img.shields.io/badge/OS-Windows-0078D6.svg?style=flat-square&logo=windows&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Accelerated-brightgreen.svg?style=flat-square)
+
+</div>
+
+<div align="right">
+  <a href="README_KR.md">🇰🇷 한국어</a> | <a href="README_CN.md">🇨🇳 中文</a> | <a href="README_RU.md">🇷🇺 Русский</a>
+</div>
+
+<br>
+
+> [!CAUTION]
+> **⚠️ Compatibility Warning**<br>
+> Currently, this project ONLY supports **Windows** OS and the **Antigravity** agent environment.
+
+<br>
+
+## ❓ Why `mcpv`?
+
+Have you ever felt this while using AI Agents (Antigravity, Cursor)?
+> *"Why is it so heavy?"*  
+> *"It froze again..."*  
+> *"Why are the token costs so high?"*
+
+`mcpv` is not just a tool. It is a **Turbo Engine** for your agent.
+
+<br>
+
+### 🏎️ Overwhelming Performance Difference
+
+| Feature | 😫 Without `mcpv` (Before) | ⚡ With `mcpv` (After) | 📈 Effect |
+| :--- | :--- | :--- | :--- |
+| **Speed** | No GPU, Laggy UI | **Forced GPU Acceleration, Smooth** | **100x** Perceived Speed |
+| **Loading** | Wait 60s+ every time | **0.1s Instant Start** (Lazy Load) | **Zero** Latency |
+| **Cost** | Resend full code every time | **Auto-block Duplicates** (Smart Cache) | **90%** Savings |
+
+<br>
+
+---
+
+## ✨ 3 Core Features
+
+### 1️⃣ Booster Injection (Physical Acceleration)
+**"Unlock hardware limits with one line"**
+- **Forced GPU Activation**: Injects hidden rendering acceleration flags (`--enable-gpu-rasterization`).
+- **Permission Bypass**: Drops Admin rights to fix drag-and-drop & UI bugs, and bypasses permission requests (Error 740) using `RunAsInvoker`.
+- **Zombie Process Killer**: Automatically cleans up ghost processes occupying ports.
+
+### 2️⃣ Smart Valve (Cost Defense)
+**"Smart wallet protector that saves for you"**
+- Detects the massive context data (`repomix`) that agents habitually request.
+- **First request: Allowed** (Full context provided).
+- **Subsequent requests: Blocked** with a 10-token **"Already cached"** message.
+- Physically blocks accidental token bombs.
+
+### 3️⃣ Gateway Hijacking (Secure Vault)
+**"Stop struggling with complex configs"**
+- **Zero-Latency Startup**: Only scans directories when the agent actually requests them. No timeouts on large repos.
+- Automatically migrates existing complex MCP settings to a secure Vault.
+- Original config is safely backed up to `mcp_config.original.json`.
+- The agent talks only to `mcpv`, but all tools work perfectly behind the scenes.
+
+<br>
+
+---
+
+## 🛠️ Verified Recommended Setup
+
+Verified MCP server configuration used by the developer. It creates the best synergy when used with `mcpv`.
+
+```json
+{
+  "mcpServers": {
+    "rube": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://rube.app/mcp"]
+    },
+    "open-aware": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://open-aware.qodo.ai/mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "PUT_IN_YOUR_API_KEY_HERE"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "mcp-server-neon": {
+      "disabled": false,
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.neon.tech/sse"],
+      "env": {
+        "NEON_API_KEY": "NEVERCHANGE_DONT_PUT_IN_ANYTHING_ELSE_THAN_ME_HERE"
+      }
+    }
+  }
+}
+</file>
+
+<file path="init.ps1">
+git add .
+git commit -m "Initial commit..............."
+git push -u origin main
+</file>
+
+</files>

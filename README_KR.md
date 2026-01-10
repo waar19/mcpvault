@@ -65,10 +65,49 @@ AI 에이전트(Antigravity, Cursor)를 쓰다가 이런 경험 없으신가요?
 
 ### 3️⃣ Gateway Hijacking (안전한 금고)
 **"복잡한 설정은 이제 그만"**
-- **Zero-Latency Startup**: 에이전트가 실제로 요청할 때만 디렉토리를 스캔합니다. 대규모 레포지토리에서도 타임아웃이 발생하지 않습니다.
+- **루트 경로 고정 (Root Path Locking)**: `mcpv install`을 실행한 위치를 기억하여, 에이전트가 어디에 있든 항상 올바른 프로젝트 루트를 바라보게 합니다. 더 이상 "파일을 찾을 수 없음" 오류로 고생하지 마세요.
 - 기존의 복잡한 MCP 설정을 안전한 금고(Vault)로 자동 이전합니다.
 - 원본 설정은 `mcp_config.original.json`에 안전하게 백업됩니다.
-- 에이전트는 아무것도 모른 채 `mcpv`와 대화하지만, 모든 도구는 완벽하게 작동합니다.
+
+### 4️⃣ Smart Router (스마트 라우터)
+**"모든 도구를 하나로 통합"**
+- **통합 인터페이스**: 에이전트는 어떤 서버에 어떤 도구가 있는지 알 필요가 없습니다. 그저 `run_tool(name="...")` 하나로 모든 도구를 실행합니다.
+- **자동 교정 (Auto-Correction)**: 에이전트가 오타를 냈거나 서버 이름을 불렀나요? `mcpv`가 알아서 찰떡같이 알아듣고 올바른 도구를 찾아 실행하거나 제안합니다.
+- **지연 없는 시동**: 실제로 도구가 필요할 때만 상류 서버와 연결하여 부하를 최소화합니다.
+
+<br>
+
+---
+
+## 📦 설치 방법 (Installation)
+
+이 프로젝트는 **Windows** 환경에 최적화되어 있습니다. 빠르고 깔끔한 설치를 위해 `uv` 사용을 권장합니다.
+
+```powershell
+# uv를 사용한 설치 (권장)
+uv pip install . --system
+
+# 또는 일반 pip 사용
+pip install .
+```
+
+패키지 설치 후, 반드시 다음 명령어를 실행하여 Vault를 설정해야 합니다:
+
+```powershell
+mcpv install
+```
+
+<br>
+
+---
+
+## 💻 사용 가능한 명령어 (Commands)
+
+| 명령어 | 설명 |
+| :--- | :--- |
+| `mcpv install` | **(필수)** `mcpv`를 설치하고 설정을 이전하며, **현재 디렉토리를 프로젝트 루트로 고정**합니다. |
+| `mcpv install --force` | 이미 `mcpv`가 설치되어 있어도 강제로 덮어쓰고 재설치합니다. |
+| `mcpv start` | **(내부용)** 서버를 시작합니다. (사용자가 직접 실행할 일은 거의 없습니다) |
 
 <br>
 
@@ -107,130 +146,3 @@ AI 에이전트(Antigravity, Cursor)를 쓰다가 이런 경험 없으신가요?
     }
   }
 }
-```
-
-
-<br>
-
----
-
-## 📝 권장 시스템 규칙 (Recommended System Rule)
-
-**이 규칙을 에이전트의 시스템 프롬프트(.cursorrules, .antigravityrules 등)에 추가하세요.**  
-에이전트가 중복 요청 없이 `mcpv`를 올바르게 사용하도록 보장합니다.
-
-> **[System Instruction]**
->
-> **Session Start**: At the very beginning of the conversation, you MUST call `get_initial_context` tool immediately. This is your only way to understand the project structure.
->
-> **Context Management**: Do NOT call `get_initial_context` again in the same session unless the user explicitly asks for a "refresh" with `force=True`. The proxy will block redundant requests.
->
-> **File Access**: After reading the initial context map, use `read_file` to inspect specific files needed for the task.
-
-<br>
-
----
-
-## 🛠️ 기술 스택 (Tech Stack)
-
-- **Python & uv**: `uv`를 사용하여 의존성 지옥을 방지하고 깨끗하고 격리된 가상 환경을 사용합니다.
-- **FastMCP**: 빠른 속도를 위해 FastMCP 프레임워크 기반으로 구축되었습니다.
-- **Gateway Pattern**: 원본 설정을 백업하고 프록시를 통해 트래픽을 안전하게 라우팅합니다.
-
-<br>
-
----
-
-# 🚀 설치 및 실행 가이드 (Windows / uv 기준)
-
-이 프로젝트는 `uv`를 사용하여 **독립적인 가상환경(.venv)** 에서 설치/실행하는 것을 권장합니다.
-
-> ✅ 아래 명령은 **프로젝트 루트 폴더(README가 있는 위치)** 에서 PowerShell로 실행하세요.
-
----
-
-## 0. 준비물
-- Windows 10/11
-- PowerShell
-- `uv` 설치됨
-  - 설치 확인: `uv --version`
-
----
-
-## 1. 기존 프로세스 정리 (재설치 시)
-기존에 실행 중인 프로세스가 있다면 충돌 방지를 위해 종료합니다.
-
-> ⚠️ `python` 프로세스 종료는 다른 작업에도 영향을 줄 수 있으니, 필요할 때만 실행하세요.
-
-```powershell
-Stop-Process -Name "mcpv" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "python" -Force -ErrorAction SilentlyContinue
-```
-
----
-
-## 2. 가상환경 생성 및 패키지 설치
-`uv`를 이용해 시스템 파이썬과 분리된 깨끗한 환경을 만듭니다.
-
-```powershell
-# uv 설치
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# 가상환경(.venv) 생성
-uv venv
-
-# 가상환경에 mcpv 패키지 설치
-uv pip install .
-```
-
----
-
-## 3. 안티그래비티 설정 등록 (핵심)
-생성한 가상환경의 Python을 사용하여 설치 명령을 실행합니다.
-즉, **이 가상환경을 사용하여 설치를 진행합니다.**
-
-```powershell
-# .venv 환경 내의 라이브러리를 사용하여 mcpv를 안티그래비티에 등록합니다.
-.venv\Scripts\python -m mcpv install --force
-```
-
----
-
-## 4. 실행
-바탕화면에 생성된 **`Antigravity Boost (mcpv)`** 바로가기를 더블 클릭하여 실행하세요.
-
----
-
-## (선택) 정상 설치 확인
-아래 명령으로 `.venv` 내부에서 `mcpv` 모듈이 정상적으로 로드되는지 확인할 수 있습니다.
-
-```powershell
-.venv\Scripts\python -m mcpv --help
-```
-
----
-
-## 🛠️ 명령어 (Commands)
-
-| 명령어 | 설명 |
-| --- | --- |
-| `mcpv install` | 게이트웨이를 설치하고 바탕화면 바로가기를 생성합니다. |
-| `mcpv install --force` | 기존 MCP 서버가 1개여도 강제로 설치를 진행합니다. |
-| `mcpv start` | 서버를 시작합니다 (안티그래비티 내부 사용). |
-| `mcpv --help` | 도움말을 표시합니다. |
-
----
-
-☕ **Support**  
-이 프로젝트가 토큰비와 시간을 아끼는 데 도움이 되었다면, 커피 한 잔 선물해 주세요!  
-
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180" />](https://www.buymeacoffee.com/mcpv)
-
-<br>
-
----
-
-<div align="center">
-  <b>⚡ Charged by MCP Vault</b><br>
-  <i>Developed for High-Performance AI Agent Operations</i>
-</div>

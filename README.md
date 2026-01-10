@@ -64,10 +64,49 @@ Have you ever felt this while using AI Agents (Antigravity, Cursor)?
 
 ### 3️⃣ Gateway Hijacking (Secure Vault)
 **"Stop struggling with complex configs"**
-- **Zero-Latency Startup**: Only scans directories when the agent actually requests them. No timeouts on large repos.
+- **Root Path Locking**: Captures the directory where you run `mcpv install` and forces the agent to ALWAYS see that directory as the project root. No more "File not found" errors when the agent drifts to other folders.
 - Automatically migrates existing complex MCP settings to a secure Vault.
 - Original config is safely backed up to `mcp_config.original.json`.
-- The agent talks only to `mcpv`, but all tools work perfectly behind the scenes.
+
+### 4️⃣ Smart Router (Flattened Execution)
+**"One Tool to Rule Them All"**
+- **Unified Interface**: The agent doesn't need to know which server has which tool. It just calls `run_tool(name="...")`.
+- **Auto-Correction**: Did the agent make a typo? Did it try to call a server name? `mcpv` automatically finds the correct tool or suggests the right name.
+- **Zero-Latency Startup**: Only connects to upstream servers when their tools are actually needed.
+
+<br>
+
+---
+
+## 📦 Installation
+
+This project is optimized for **Windows**. We recommend using `uv` for a fast and clean installation.
+
+```powershell
+# Install using uv (Recommended)
+uv pip install . --system
+
+# OR using standard pip
+pip install .
+```
+
+After installing the package, **you must run the install command** to configure the vault:
+
+```powershell
+mcpv install
+```
+
+<br>
+
+---
+
+## 💻 Commands
+
+| Command | Description |
+| :--- | :--- |
+| `mcpv install` | **(Essential)** Installs `mcpv` as the primary gateway, migrates existing config, and **locks the current directory** as the project root. |
+| `mcpv install --force` | Overwrites existing `mcpv` installation if found. |
+| `mcpv start` | **(Internal)** Starts the MCP server. Used by the Antigravity agent, not for humans. |
 
 <br>
 
@@ -106,142 +145,3 @@ Verified MCP server configuration used by the developer. It creates the best syn
     }
   }
 }
-```
-
-<br>
-
----
-
-## � Recommended System Rule
-
-**Add this rule to your agent's system prompt (e.g., .cursorrules, .antigravityrules).**  
-This ensures the agent uses `mcpv` correctly without redundant requests.
-
-> **[System Instruction]**
->
-> **Session Start**: At the very beginning of the conversation, you MUST call `get_initial_context` tool immediately. This is your only way to understand the project structure.
->
-> **Context Management**: Do NOT call `get_initial_context` again in the same session unless the user explicitly asks for a "refresh" with `force=True`. The proxy will block redundant requests.
->
-> **File Access**: After reading the initial context map, use `read_file` to inspect specific files needed for the task.
-
-<br>
-
----
-
-## �🛠️ Tech Stack
-
-- **Python & uv**: Uses `uv` for clean, isolated virtual environments to prevent dependency hell.
-- **FastMCP**: Built on top of the FastMCP framework for speed.
-- **Gateway Pattern**: It backs up your original config and routes traffic through the proxy securely.
-
-<br>
-
----
-
-## 📦 Installation
-
-Choose the method that fits your needs.
-
-### Option A: The "It Just Works" Method (Recommended for most users)
-If you have Python installed and added to PATH.
-
-```powershell
-# 1. Install from PyPI
-pip install mcpv
-
-# 2. Setup Gateway & Booster
-mcpv install
-
-# 3. Done! 
-# Look for the "Antigravity Boost (mcpv)" shortcut on your Desktop.
-
-```
-
----
-
-### Option B: The "Rock-Solid" Method (Using `uv`)
-
-Use this method if your Python environment is messy or you want complete isolation.
-
-#### 1. Clean up existing processes
-
-```powershell
-Stop-Process -Name "mcpv" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "python" -Force -ErrorAction SilentlyContinue
-
-```
-
-#### 2. Create Virtual Environment & Install
-
-```powershell
-# Install uv (if needed)
-powershell -ExecutionPolicy ByPass -c "irm [https://astral.sh/uv/install.ps1](https://astral.sh/uv/install.ps1) | iex"
-
-# Create .venv and install mcpv
-uv venv
-uv pip install mcpv
-
-```
-
-#### 3. Register & Lock
-
-This registers the **isolated virtual environment** into Antigravity's config.
-
-```powershell
-.venv\Scripts\python -m mcpv install --force
-
-```
-
-#### 4. Run
-
-Launch **`Antigravity Boost (mcpv)`** from your Desktop.
-
----
-
-## 🛠️ Commands
-
-| Command | Description |
-| --- | --- |
-| `mcpv install` | Installs the gateway and creates the Desktop shortcut. |
-| `mcpv install --force` | Forces installation even if only 1 MCP server exists. |
-| `mcpv start` | Starts the server (Used internally by Antigravity). |
-| `mcpv --help` | Show help message. |
-
----
-
-## ❓ Troubleshooting
-
-#### Q. "File access denied" or "Failed to remove file" during update?
-
-This means `mcpv.exe` or `Antigravity` is still running.
-
-1. Close Antigravity.
-2. Run: `Stop-Process -Name "mcpv" -Force` in PowerShell.
-3. Try installing again.
-
-#### Q. I installed it, but I don't see the Shortcut.
-
-The shortcut is created on your **Desktop**. If not, check the installation logs. You can create it manually by running `mcpv install` again.
-
----
-
-## 📜 License
-
-MIT License. Feel free to fork and modify!
-
----
-
-☕ **Support**  
-If this project helped you save tokens and time, consider buying me a coffee!  
-
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180" />](https://www.buymeacoffee.com/mcpv)
-
-<br>
-
----
-
-<div align="center">
-  <b>⚡ Charged by MCP Vault</b><br>
-  <i>Developed for High-Performance AI Agent Operations</i>
-</div>

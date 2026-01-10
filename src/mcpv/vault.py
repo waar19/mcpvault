@@ -22,6 +22,7 @@ HOME_DIR = Path.home()
 CONFIG_DIR = HOME_DIR / ".gemini" / "antigravity"
 CONFIG_FILE = CONFIG_DIR / "mcp_config.json"
 BACKUP_FILE = CONFIG_DIR / "mcp_config.original.json"
+ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
 MY_SERVER_NAME = "mcpv-proxy"
 
 # 안티그래비티 경로
@@ -35,12 +36,12 @@ class VaultManager:
         self.sessions = {}
 
     def install(self, force: bool = False):
-        """1. MCP Config 하이재킹 (절대 경로 사용)"""
+        """1. MCP Config 하이재킹 및 경로 고정"""
         success = self._hijack_config(force)
         if success:
             """2. 부스팅 스크립트 설치"""
             self._install_booster()
-            print("✨ Installation complete. Please restart Antigravity using the new Desktop Shortcut!")
+            print("✨ Installation & Path Lock Complete!")
 
     def _hijack_config(self, force: bool) -> bool:
         if not CONFIG_DIR.exists():
@@ -60,46 +61,48 @@ class VaultManager:
             config = {"mcpServers": {}}
 
         servers = config.get("mcpServers", {})
-        
-        # [Case 1] 이미 설치됨
-        if len(servers) == 1 and MY_SERVER_NAME in servers:
-            print("✅ mcpv middleware is already active.", file=sys.stderr)
-            return True
+        other_servers = {k: v for k, v in servers.items() if k != MY_SERVER_NAME}
 
-        # [Case 2] 1개뿐인 경우 스킵 (강제 옵션 없으면)
-        if len(servers) == 1 and not force:
-            print(f"⚠️  Only 1 MCP server found: {list(servers.keys())}", file=sys.stderr)
+        if other_servers and not force:
+            print(f"⚠️  Existing MCP servers found: {list(other_servers.keys())}", file=sys.stderr)
             print("   Skipping installation. Use 'mcpv install --force' to override.", file=sys.stderr)
             return False
 
-        # 백업 생성
-        upstream = {k: v for k, v in servers.items() if k != MY_SERVER_NAME}
-        if upstream:
+        if other_servers:
             with open(BACKUP_FILE, "w", encoding="utf-8") as f:
-                json.dump({"mcpServers": upstream}, f, indent=2)
+                json.dump({"mcpServers": other_servers}, f, indent=2)
             print(f"📦 Backup created at: {BACKUP_FILE}", file=sys.stderr)
 
-        # [핵심 변경점] 환경변수 꼬임 방지: 현재 실행 중인 Python의 절대 경로 사용
-        # mcpv 명령어 대신 "python.exe -m mcpv start" 형태로 등록
+        # [핵심] 현재 경로 저장
         current_python = sys.executable
+        current_cwd = os.getcwd()
         
+        print(f"🔧 Locking Project Root to: {current_cwd}")
+        
+        try:
+            with open(ROOT_PATH_FILE, "w", encoding="utf-8") as f:
+                f.write(current_cwd)
+            print(f"📍 Root path saved to {ROOT_PATH_FILE}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Failed to save root path: {e}", file=sys.stderr)
+
         my_config = {
             "command": current_python,
             "args": ["-m", "mcpv", "start"],
-            "cwd": os.getcwd(),
+            "cwd": current_cwd,
             "env": {
                 "PYTHONUNBUFFERED": "1",
-                "PYTHONPATH": os.getcwd() # 현재 설치된 위치를 모듈 경로로 명시
+                "PYTHONPATH": current_cwd
             }
         }
         
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump({"mcpServers": {MY_SERVER_NAME: my_config}}, f, indent=2)
-        print(f"🔒 Vault locked using Python: {current_python}", file=sys.stderr)
+            
+        print(f"🔒 Vault config updated.", file=sys.stderr)
         return True
 
     def _install_booster(self):
-        # (기존 부스터 설치 코드 유지)
         print("🚀 Installing Booster Script...", file=sys.stderr)
         if not ANTIGRAVITY_PATH.exists():
              print(f"⚠️  Antigravity path not found. Skipping booster.", file=sys.stderr)
@@ -119,7 +122,6 @@ exit
             print(f"⚠️  Booster installation failed: {e}", file=sys.stderr)
 
     def _create_shortcut_vbs(self, target, name, icon):
-        # (기존 VBS 바로가기 생성 코드 유지)
         desktop = Path(os.environ["USERPROFILE"]) / "Desktop"
         link_path = desktop / f"{name}.lnk"
         vbs_script = f'''
@@ -136,19 +138,38 @@ exit
         try:
             with open(vbs_file, "w", encoding="utf-8") as f: f.write(vbs_script)
             os.system(f"cscript //nologo {vbs_file}")
-            print(f"   ✨ Shortcut created on Desktop: {name}", file=sys.stderr)
         finally:
             if vbs_file.exists(): os.remove(vbs_file)
 
     async def get_session(self, server_name):
-        # (기존 세션 관리 코드 유지)
         if server_name in self.sessions: return self.sessions[server_name]
         if not BACKUP_FILE.exists(): raise FileNotFoundError("Vault is empty.")
         with open(BACKUP_FILE, "r") as f: config = json.load(f)
         srv = config["mcpServers"].get(server_name)
         if not srv: raise ValueError(f"Server {server_name} not found.")
         
-        params = StdioServerParameters(command=srv["command"], args=srv.get("args", []), env=os.environ | srv.get("env", {}))
+        # [수정됨] 상류 서버 실행 시 CI=true 강제 주입
+        upstream_env = os.environ.copy()
+        upstream_env["CI"] = "true" 
+        upstream_env.update(srv.get("env", {}))
+
+        # [핵심 수정] Windows에서 npx 등의 명령어 위치 찾기 (npx -> npx.cmd)
+        cmd = srv["command"]
+        resolved_cmd = shutil.which(cmd)
+        
+        if not resolved_cmd and os.name == 'nt':
+            # .cmd 나 .exe를 붙여서 찾아봄
+            resolved_cmd = shutil.which(f"{cmd}.cmd") or shutil.which(f"{cmd}.exe")
+        
+        # 그래도 못 찾으면 원래 명령어 사용 (PATH에 있다고 가정)
+        final_cmd = resolved_cmd if resolved_cmd else cmd
+
+        params = StdioServerParameters(
+            command=final_cmd,       # <--- ✅ 수정: Windows 호환 처리가 된 final_cmd 사용
+            args=srv.get("args", []),
+            env=upstream_env
+        )
+        
         read, write = await self.stack.enter_async_context(stdio_client(params))
         session = await self.stack.enter_async_context(ClientSession(read, write))
         await session.initialize()
