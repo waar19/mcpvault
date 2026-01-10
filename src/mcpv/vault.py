@@ -2,7 +2,10 @@
 import sys
 import shutil
 import os
+import logging
+import asyncio
 from pathlib import Path
+from typing import Optional
 from mcp.client.session import ClientSession
 from mcp.client.stdio import stdio_client
 from contextlib import AsyncExitStack
@@ -17,7 +20,19 @@ except ImportError:
         from typing import Any
         StdioServerParameters = Any
 
-# 경로 설정
+# Configurable settings via environment variables
+CONNECTION_TIMEOUT = float(os.environ.get("MCPV_CONNECTION_TIMEOUT", "10.0"))
+MAX_RETRIES = int(os.environ.get("MCPV_MAX_RETRIES", "3"))
+RETRY_DELAY = float(os.environ.get("MCPV_RETRY_DELAY", "1.0"))
+
+# Logger setup
+logger = logging.getLogger("mcpv-vault")
+
+# Platform detection
+import platform
+CURRENT_PLATFORM = platform.system()  # 'Windows', 'Darwin', 'Linux'
+
+# Path configuration - platform aware
 HOME_DIR = Path.home()
 CONFIG_DIR = HOME_DIR / ".gemini" / "antigravity"
 CONFIG_FILE = CONFIG_DIR / "mcp_config.json"
@@ -25,10 +40,21 @@ BACKUP_FILE = CONFIG_DIR / "mcp_config.original.json"
 ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
 MY_SERVER_NAME = "mcpv-proxy"
 
-# 안티그래비티 경로
-ANTIGRAVITY_PATH = Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Antigravity"
-ANTIGRAVITY_EXE = ANTIGRAVITY_PATH / "Antigravity.exe"
-BOOSTER_SCRIPT = CONFIG_DIR / "boost_launcher.bat"
+# Antigravity paths - platform specific
+def _get_antigravity_paths() -> tuple[Path, Path, Path]:
+    """Returns (antigravity_dir, antigravity_exe, booster_script) for current platform."""
+    if CURRENT_PLATFORM == "Windows":
+        localappdata = os.environ.get("LOCALAPPDATA", str(HOME_DIR / "AppData" / "Local"))
+        base = Path(localappdata) / "Programs" / "Antigravity"
+        return base, base / "Antigravity.exe", CONFIG_DIR / "boost_launcher.bat"
+    elif CURRENT_PLATFORM == "Darwin":  # macOS
+        base = Path("/Applications/Antigravity.app/Contents/MacOS")
+        return base, base / "Antigravity", CONFIG_DIR / "boost_launcher.sh"
+    else:  # Linux
+        base = HOME_DIR / ".local" / "share" / "antigravity"
+        return base, base / "antigravity", CONFIG_DIR / "boost_launcher.sh"
+
+ANTIGRAVITY_PATH, ANTIGRAVITY_EXE, BOOSTER_SCRIPT = _get_antigravity_paths()
 
 class VaultManager:
     def __init__(self):
@@ -47,8 +73,9 @@ class VaultManager:
         if not CONFIG_DIR.exists():
             try:
                 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-            except:
-                print(f"❌ Config dir creation failed at {CONFIG_DIR}", file=sys.stderr)
+            except OSError as e:
+                logger.error(f"Config dir creation failed: {e}")
+                print(f"❌ Config dir creation failed at {CONFIG_DIR}: {e}", file=sys.stderr)
                 return False
 
         if not CONFIG_FILE.exists():
@@ -56,8 +83,10 @@ class VaultManager:
                 json.dump({"mcpServers": {}}, f)
 
         try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f: config = json.load(f)
-        except:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f: 
+                config = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Could not load config file, using defaults: {e}")
             config = {"mcpServers": {}}
 
         servers = config.get("mcpServers", {})
@@ -141,40 +170,87 @@ exit
         finally:
             if vbs_file.exists(): os.remove(vbs_file)
 
-    async def get_session(self, server_name):
-        if server_name in self.sessions: return self.sessions[server_name]
-        if not BACKUP_FILE.exists(): raise FileNotFoundError("Vault is empty.")
-        with open(BACKUP_FILE, "r") as f: config = json.load(f)
-        srv = config["mcpServers"].get(server_name)
-        if not srv: raise ValueError(f"Server {server_name} not found.")
+    async def get_session(self, server_name: str) -> Optional[ClientSession]:
+        """
+        Gets or creates a session to an upstream MCP server.
+        Implements retry with exponential backoff for resilience.
+        """
+        # Return cached session if available
+        if server_name in self.sessions: 
+            return self.sessions[server_name]
         
-        # [수정됨] 상류 서버 실행 시 CI=true 강제 주입
+        # Validate vault exists
+        if not BACKUP_FILE.exists(): 
+            logger.error("Vault backup file not found")
+            raise FileNotFoundError("Vault is empty. Run 'mcpv install' first.")
+        
+        # Load config
+        try:
+            with open(BACKUP_FILE, "r", encoding="utf-8") as f: 
+                config = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.error(f"Failed to read vault config: {e}")
+            raise RuntimeError(f"Could not read vault config: {e}")
+        
+        srv = config.get("mcpServers", {}).get(server_name)
+        if not srv: 
+            logger.warning(f"Server '{server_name}' not found in vault")
+            raise ValueError(f"Server '{server_name}' not found in vault.")
+        
+        # Prepare environment
         upstream_env = os.environ.copy()
         upstream_env["CI"] = "true" 
         upstream_env.update(srv.get("env", {}))
 
-        # [핵심 수정] Windows에서 npx 등의 명령어 위치 찾기 (npx -> npx.cmd)
+        # Resolve command (Windows compatibility: npx -> npx.cmd)
         cmd = srv["command"]
         resolved_cmd = shutil.which(cmd)
         
         if not resolved_cmd and os.name == 'nt':
-            # .cmd 나 .exe를 붙여서 찾아봄
             resolved_cmd = shutil.which(f"{cmd}.cmd") or shutil.which(f"{cmd}.exe")
         
-        # 그래도 못 찾으면 원래 명령어 사용 (PATH에 있다고 가정)
         final_cmd = resolved_cmd if resolved_cmd else cmd
+        logger.debug(f"Resolved command for '{server_name}': {final_cmd}")
 
         params = StdioServerParameters(
-            command=final_cmd,       # <--- ✅ 수정: Windows 호환 처리가 된 final_cmd 사용
+            command=final_cmd,
             args=srv.get("args", []),
             env=upstream_env
         )
         
-        read, write = await self.stack.enter_async_context(stdio_client(params))
-        session = await self.stack.enter_async_context(ClientSession(read, write))
-        await session.initialize()
-        self.sessions[server_name] = session
-        return session
+        # Retry loop with exponential backoff
+        last_error: Optional[Exception] = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                logger.info(f"Connecting to '{server_name}' (attempt {attempt}/{MAX_RETRIES})")
+                
+                read, write = await asyncio.wait_for(
+                    self.stack.enter_async_context(stdio_client(params)),
+                    timeout=CONNECTION_TIMEOUT
+                )
+                session = await self.stack.enter_async_context(ClientSession(read, write))
+                await asyncio.wait_for(session.initialize(), timeout=CONNECTION_TIMEOUT)
+                
+                self.sessions[server_name] = session
+                logger.info(f"Successfully connected to '{server_name}'")
+                return session
+                
+            except asyncio.TimeoutError:
+                last_error = TimeoutError(f"Connection to '{server_name}' timed out after {CONNECTION_TIMEOUT}s")
+                logger.warning(f"Timeout connecting to '{server_name}' (attempt {attempt})")
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Failed to connect to '{server_name}' (attempt {attempt}): {e}")
+            
+            # Exponential backoff before retry (except on last attempt)
+            if attempt < MAX_RETRIES:
+                delay = RETRY_DELAY * (2 ** (attempt - 1))
+                logger.debug(f"Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+        
+        # All retries exhausted
+        logger.error(f"Failed to connect to '{server_name}' after {MAX_RETRIES} attempts")
+        raise ConnectionError(f"Could not connect to '{server_name}' after {MAX_RETRIES} attempts: {last_error}")
 
     async def cleanup(self):
         await self.stack.aclose()

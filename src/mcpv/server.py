@@ -6,11 +6,14 @@ from pathlib import Path
 from fastmcp import FastMCP
 from .valve import valve
 from .vault import manager
+from .dashboard import dashboard
 
 # 1. 설정 및 로깅 (기존 유지)
 CONFIG_DIR = Path.home() / ".gemini" / "antigravity"
-try: CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-except: pass
+try: 
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+except OSError as e: 
+    logger.warning(f"Could not create config dir: {e}")
 LOG_FILE = CONFIG_DIR / "mcpv_debug.log"
 ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
 
@@ -21,7 +24,8 @@ logger = logging.getLogger("mcpv-router")
 if ROOT_PATH_FILE.exists():
     try:
         os.chdir(Path(ROOT_PATH_FILE.read_text(encoding="utf-8").strip()).resolve())
-    except: pass
+    except (OSError, ValueError) as e: 
+        logger.warning(f"Could not change to root path: {e}")
 ROOT_DIR = Path.cwd().resolve()
 
 mcp = FastMCP("mcpv", log_level="DEBUG")
@@ -66,8 +70,10 @@ async def _build_registry():
                     "desc": t.description[:100] if t.description else "No description",
                     "args": ", ".join(args)
                 }
-        except:
-            continue
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout listing tools from server '{name}'")
+        except Exception as e:
+            logger.warning(f"Error getting tools from '{name}': {e}")
             
     TOOL_REGISTRY = new_registry
     logger.info(f"🗺️ Tool Registry Built: {len(TOOL_REGISTRY)} tools found.")
@@ -162,17 +168,22 @@ async def run_tool(tool_name: str, args: dict = {}) -> str:
             
         return f"❌ Tool '{tool_name}' not found in Registry. Please call 'get_initial_context' to see the full menu."
 
-    # 4. 실행 로직 (기존과 동일)
+    # 4. Execute tool with timing
     server_name = info['server']
     real_tool_name = info['real_name']
+    start_time = asyncio.get_event_loop().time()
     
     try:
         session = await manager.get_session(server_name)
-        # 세션 연결 실패 시 재시도 로직이나 안내 메시지 등은 manager 내부 혹은 여기서 처리
         if not session:
+            dashboard.log_tool_call(tool_name, server_name, 0, success=False)
             return f"❌ Failed to connect to server '{server_name}'."
 
         result = await session.call_tool(real_tool_name, args)
+        
+        # Calculate latency
+        latency_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+        dashboard.log_tool_call(tool_name, server_name, latency_ms, success=True)
         
         output = []
         if hasattr(result, 'content'):
@@ -186,15 +197,37 @@ async def run_tool(tool_name: str, args: dict = {}) -> str:
     except Exception as e:
         return f"❌ Execution Error ({server_name} -> {tool_name}): {e}"
 
-# --- 기존 필수 유틸리티 (파일 읽기 등) ---
+# Configurable file size limit
+MAX_FILE_SIZE_MB = float(os.environ.get("MCPV_MAX_FILE_SIZE_MB", "1.0"))
+
 @mcp.tool()
 def read_file(path: str) -> str:
-    """Reads a file from the project root."""
+    """Reads a file from the project root with security checks."""
     try:
         p = (ROOT_DIR / path).resolve()
-        if not str(p).startswith(str(ROOT_DIR)): return "⛔ Access Denied"
+        
+        # Security: Check path is within allowed root
+        if not p.is_relative_to(ROOT_DIR): 
+            logger.warning(f"Access denied for path outside root: {path}")
+            return "⛔ Access Denied: Path outside project root"
+        
+        # Security: Reject symlinks to prevent escape
+        if p.is_symlink():
+            logger.warning(f"Symlink access denied: {path}")
+            return "⛔ Access Denied: Symlinks not allowed"
+        
+        # Security: Check file size
+        if p.exists() and p.stat().st_size > MAX_FILE_SIZE_MB * 1024 * 1024:
+            return f"⛔ File too large (>{MAX_FILE_SIZE_MB}MB). Use external tools."
+        
         return p.read_text(encoding="utf-8", errors="replace")
-    except Exception as e: return str(e)
+    except FileNotFoundError:
+        return f"❌ File not found: {path}"
+    except PermissionError:
+        return f"❌ Permission denied: {path}"
+    except Exception as e: 
+        logger.error(f"Error reading file '{path}': {e}")
+        return f"❌ Error reading file: {e}"
 
 @mcp.tool()
 def list_directory(path: str = ".") -> str:
@@ -206,4 +239,41 @@ def list_directory(path: str = ".") -> str:
             for e in it:
                 if not e.name.startswith("."): out.append(e.name)
         return "\n".join(out)
-    except Exception as e: return str(e)
+    except Exception as e: 
+        return str(e)
+
+
+@mcp.tool()
+async def reload_config() -> str:
+    """
+    Hot-reloads upstream server configuration without restart.
+    Clears existing tool registry and rebuilds from current config.
+    """
+    global TOOL_REGISTRY
+    
+    logger.info("Hot-reload requested: Clearing tool registry...")
+    
+    # Clear registry
+    old_count = len(TOOL_REGISTRY)
+    TOOL_REGISTRY = {}
+    
+    # Close existing sessions gracefully
+    try:
+        for server_name in list(manager.sessions.keys()):
+            logger.debug(f"Closing session to '{server_name}'")
+        manager.sessions.clear()
+    except Exception as e:
+        logger.warning(f"Error clearing sessions: {e}")
+    
+    # Rebuild registry
+    await _build_registry()
+    
+    new_count = len(TOOL_REGISTRY)
+    
+    return (
+        f"✅ Configuration reloaded!\n"
+        f"   Previous tools: {old_count}\n"
+        f"   Current tools:  {new_count}\n"
+        f"   Available now:  {', '.join(list(TOOL_REGISTRY.keys())[:10])}"
+        + (f"... and {new_count - 10} more" if new_count > 10 else "")
+    )

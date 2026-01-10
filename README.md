@@ -107,6 +107,70 @@ mcpv install
 | `mcpv install` | **(Essential)** Installs `mcpv` as the primary gateway, migrates existing config, and **locks the current directory** as the project root. |
 | `mcpv install --force` | Overwrites existing `mcpv` installation if found. |
 | `mcpv start` | **(Internal)** Starts the MCP server. Used by the Antigravity agent, not for humans. |
+| `mcpv status` | Shows installation status, locked root path, upstream servers, and usage statistics. |
+| `mcpv reset-stats` | Resets the dashboard statistics (tokens saved, tool calls, etc.). |
+
+<br>
+
+---
+
+## ⚙️ Environment Variables
+
+Configure `mcpv` behavior with these optional environment variables:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `MCPV_CONNECTION_TIMEOUT` | `10.0` | Seconds to wait for upstream server connections |
+| `MCPV_MAX_RETRIES` | `3` | Number of retry attempts for failed connections |
+| `MCPV_RETRY_DELAY` | `1.0` | Base delay in seconds between retries (exponential backoff) |
+| `MCPV_MAX_FILE_SIZE_MB` | `1.0` | Maximum file size allowed for `read_file` tool |
+
+<br>
+
+---
+
+## 🖥️ Platform Support
+
+| Platform | Status | Notes |
+| :--- | :--- | :--- |
+| **Windows** | ✅ Full | GPU booster, shortcuts, all features |
+| **macOS** | 🟡 Core | Core MCP proxy features work, no GPU booster |
+| **Linux** | 🟡 Core | Core MCP proxy features work, no GPU booster |
+
+<br>
+
+---
+
+## 🧪 Development
+
+### Installing Dev Dependencies
+
+```powershell
+# Install with dev dependencies
+pip install -e ".[dev]"
+```
+
+### Running Tests
+
+```powershell
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=mcpv --cov-report=html
+```
+
+### MCP Tools Available
+
+When running, `mcpv` exposes these tools to the agent:
+
+| Tool | Description |
+| :--- | :--- |
+| `get_initial_context` | Returns available tools from upstream servers (blocked after first call) |
+| `run_tool` | Executes any tool from connected upstream servers |
+| `read_file` | Reads files from the locked project root |
+| `list_directory` | Lists directory contents |
+| `reload_config` | Hot-reloads upstream server configuration without restart |
 
 <br>
 
@@ -145,3 +209,4 @@ Verified MCP server configuration used by the developer. It creates the best syn
     }
   }
 }
+```
