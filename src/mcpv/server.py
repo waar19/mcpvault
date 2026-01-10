@@ -7,6 +7,7 @@ from fastmcp import FastMCP
 from .valve import valve
 from .vault import manager
 from .dashboard import dashboard
+from .cache import cache
 
 # 1. Configuration and Logging Setup
 CONFIG_DIR = Path.home() / ".gemini" / "antigravity"
@@ -121,12 +122,13 @@ async def get_initial_context(force: bool = False) -> str:
     return "\n".join(manual)
 
 # === 🌟 [Core 3] Unified Execution Tool (Flattened Execution) ===
-# === 🌟 [Upgrade] Smart Execution Tool (with Auto-Correction) ===
+# === 🌟 [Upgrade] Smart Execution Tool (with Auto-Correction + Caching) ===
 @mcp.tool()
-async def run_tool(tool_name: str, args: dict = {}) -> str:
+async def run_tool(tool_name: str, args: dict = {}, bypass_cache: bool = False) -> str:
     """
     Executes ANY tool from the available list.
     Smart Router: Automatically finds the correct server for the tool.
+    Results are cached to reduce redundant calls (unless bypass_cache=True).
     """
     # 1. Load registry (build if empty)
     if not TOOL_REGISTRY:
@@ -171,7 +173,15 @@ async def run_tool(tool_name: str, args: dict = {}) -> str:
             
         return f"❌ Tool '{tool_name}' not found in Registry. Please call 'get_initial_context' to see the full menu."
 
-    # 4. Execute tool with timing
+    # 4. Check cache (unless bypassed)
+    cache_key = cache.generate_key(tool_name, args)
+    if not bypass_cache:
+        cached_entry = cache.get(cache_key)
+        if cached_entry:
+            dashboard.log_tool_call(tool_name, info['server'], 0, success=True)
+            return f"[📦 Cached - {cached_entry.hit_count} hits]\n{cached_entry.result}"
+
+    # 5. Execute tool with timing
     server_name = info['server']
     real_tool_name = info['real_name']
     start_time = asyncio.get_event_loop().time()
@@ -195,9 +205,14 @@ async def run_tool(tool_name: str, args: dict = {}) -> str:
                 else: output.append(f"[{c.type} content]")
         
         final_res = "\n".join(output) if output else "✅ Executed (No output)"
+        
+        # 6. Cache the result
+        cache.set(cache_key, final_res, tool_name=tool_name)
+        
         return final_res
         
     except Exception as e:
+        logger.error(f"Tool execution error: {tool_name} -> {e}")
         return f"❌ Execution Error ({server_name} -> {tool_name}): {e}"
 
 # Configurable file size limit
@@ -300,3 +315,40 @@ async def reload_config() -> str:
         f"   Available now:  {', '.join(list(TOOL_REGISTRY.keys())[:10])}"
         + (f"... and {new_count - 10} more" if new_count > 10 else "")
     )
+
+
+@mcp.tool()
+def clear_cache() -> str:
+    """
+    Clears all cached tool results.
+    Use this when you need fresh data from upstream servers.
+    """
+    count = cache.clear()
+    logger.info(f"Cache cleared by user request: {count} entries")
+    return f"✅ Cache cleared! {count} entries removed."
+
+
+@mcp.tool()
+def cache_stats() -> str:
+    """
+    Returns current cache statistics.
+    Shows hit rate, size, and recent entries.
+    """
+    stats = cache.get_stats()
+    
+    lines = [
+        "📊 Cache Statistics",
+        "─" * 30,
+        f"📦 Size: {stats['size']}/{stats['max_size']}",
+        f"⏱️  TTL: {stats['ttl_seconds']}s",
+        f"✅ Hits: {stats['hits']}",
+        f"❌ Misses: {stats['misses']}",
+        f"📈 Hit Rate: {stats['hit_rate_percent']}%",
+    ]
+    
+    if stats['entries']:
+        lines.append("\n🔧 Recent Entries:")
+        for entry in stats['entries']:
+            lines.append(f"   └─ {entry['tool']}: {entry['hit_count']} hits ({entry['age_seconds']}s ago)")
+    
+    return "\n".join(lines)

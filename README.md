@@ -108,6 +108,9 @@ mcpv install
 | `mcpv install --force` | Overwrites existing `mcpv` installation if found. |
 | `mcpv start` | **(Internal)** Starts the MCP server. Used by the Antigravity agent, not for humans. |
 | `mcpv status` | Shows installation status, locked root path, upstream servers, and usage statistics. |
+| `mcpv health` | Shows health status of all upstream servers with circuit breaker states. |
+| `mcpv reconnect [server]` | Resets circuit breaker for a server (or all) to allow reconnection. |
+| `mcpv uninstall` | Uninstalls mcpv and restores original MCP config. |
 | `mcpv reset-stats` | Resets the dashboard statistics (tokens saved, tool calls, etc.). |
 
 <br>

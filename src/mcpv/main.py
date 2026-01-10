@@ -131,5 +131,33 @@ def uninstall():
         print("   Your original MCP servers are now active again.")
 
 
+@app.command()
+def health():
+    """Shows health status of all upstream servers."""
+    from .health import monitor
+    print()
+    print(monitor.format_status())
+
+
+@app.command()
+def reconnect(server_name: str = typer.Argument(None, help="Server name to reset, or 'all' for all servers")):
+    """Resets circuit breaker for a server to allow reconnection."""
+    from .health import monitor
+    
+    if server_name is None or server_name == "all":
+        # Reset all servers
+        status = monitor.get_all_status()
+        count = 0
+        for srv in status["servers"]:
+            if monitor.reset_server(srv["name"]):
+                count += 1
+        print(f"✅ Reset {count} server circuit breakers.")
+    else:
+        if monitor.reset_server(server_name):
+            print(f"✅ Circuit breaker reset for '{server_name}'.")
+        else:
+            print(f"⚠️  Server '{server_name}' not found in health registry.")
+
+
 if __name__ == "__main__":
     app()
