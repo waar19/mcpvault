@@ -150,25 +150,48 @@ exit
         except Exception as e:
             print(f"⚠️  Booster installation failed: {e}", file=sys.stderr)
 
-    def _create_shortcut_vbs(self, target, name, icon):
-        desktop = Path(os.environ["USERPROFILE"]) / "Desktop"
-        link_path = desktop / f"{name}.lnk"
-        vbs_script = f'''
-            Set oWS = WScript.CreateObject("WScript.Shell")
-            sLinkFile = "{link_path}"
-            Set oLink = oWS.CreateShortcut(sLinkFile)
-            oLink.TargetPath = "cmd.exe"
-            oLink.Arguments = "/c ""{target}"""
-            oLink.IconLocation = "{icon},0"
-            oLink.WindowStyle = 7 
-            oLink.Save
-        '''
+    def _create_shortcut_vbs(self, target: str, name: str, icon: str):
+        """Creates a desktop shortcut using VBS. Handles errors gracefully."""
+        desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+        
+        if not desktop.exists():
+            print(f"⚠️  Desktop folder not found at {desktop}", file=sys.stderr)
+            return
+            
+        link_path = str(desktop / f"{name}.lnk")
+        
+        # Escape backslashes for VBS
+        target_escaped = target.replace("\\", "\\\\")
+        link_escaped = link_path.replace("\\", "\\\\")
+        icon_escaped = icon.replace("\\", "\\\\")
+        
+        vbs_script = f'''On Error Resume Next
+Set oWS = WScript.CreateObject("WScript.Shell")
+sLinkFile = "{link_escaped}"
+Set oLink = oWS.CreateShortcut(sLinkFile)
+oLink.TargetPath = "cmd.exe"
+oLink.Arguments = "/c """"{target_escaped}""""
+oLink.IconLocation = "{icon_escaped},0"
+oLink.WindowStyle = 7
+oLink.Save
+If Err.Number <> 0 Then
+    WScript.Echo "Error: " & Err.Description
+End If
+'''
         vbs_file = CONFIG_DIR / "create_shortcut.vbs"
         try:
-            with open(vbs_file, "w", encoding="utf-8") as f: f.write(vbs_script)
-            os.system(f"cscript //nologo {vbs_file}")
+            with open(vbs_file, "w", encoding="utf-8") as f: 
+                f.write(vbs_script)
+            result = os.system(f'cscript //nologo "{vbs_file}"')
+            if result == 0:
+                print(f"✅ Desktop shortcut created: {name}", file=sys.stderr)
+            else:
+                print(f"⚠️  Shortcut creation returned code {result}", file=sys.stderr)
+        except Exception as e:
+            print(f"⚠️  Could not create shortcut: {e}", file=sys.stderr)
         finally:
-            if vbs_file.exists(): os.remove(vbs_file)
+            if vbs_file.exists(): 
+                os.remove(vbs_file)
 
     async def get_session(self, server_name: str) -> Optional[ClientSession]:
         """
