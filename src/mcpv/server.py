@@ -8,19 +8,22 @@ from .valve import valve
 from .vault import manager
 from .dashboard import dashboard
 
-# 1. 설정 및 로깅 (기존 유지)
+# 1. Configuration and Logging Setup
 CONFIG_DIR = Path.home() / ".gemini" / "antigravity"
-try: 
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-except OSError as e: 
-    logger.warning(f"Could not create config dir: {e}")
 LOG_FILE = CONFIG_DIR / "mcpv_debug.log"
 ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
 
+# Ensure config directory exists (before logger is available)
+try: 
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+except OSError as e: 
+    print(f"[mcpv] Warning: Could not create config dir: {e}", file=__import__('sys').stderr)
+
+# Now configure logging (after directory exists)
 logging.basicConfig(filename=str(LOG_FILE), level=logging.DEBUG, force=True, encoding="utf-8")
 logger = logging.getLogger("mcpv-router")
 
-# CWD 설정 (기존 유지)
+# Set current working directory from saved root path
 if ROOT_PATH_FILE.exists():
     try:
         os.chdir(Path(ROOT_PATH_FILE.read_text(encoding="utf-8").strip()).resolve())
@@ -30,12 +33,12 @@ ROOT_DIR = Path.cwd().resolve()
 
 mcp = FastMCP("mcpv")
 
-# === 🌟 [핵심 1] 글로벌 툴 레지스트리 (지도) ===
-# 구조: { "tool_name": { "server": "server_name", "desc": "description...", "args": "arg1, arg2" } }
+# === 🌟 [Core 1] Global Tool Registry (Map) ===
+# Structure: { "tool_name": { "server": "server_name", "desc": "description...", "args": "arg1, arg2" } }
 TOOL_REGISTRY = {}
 
 async def _build_registry():
-    """모든 업스트림 서버를 스캔하여 도구 지도를 만듭니다."""
+    """Scans all upstream servers and builds a tool registry map."""
     global TOOL_REGISTRY
     from .vault import BACKUP_FILE
     
@@ -46,7 +49,7 @@ async def _build_registry():
     
     active_servers = [k for k, v in config.get("mcpServers", {}).items() if not v.get("disabled")]
     
-    # 병렬 연결 시도
+    # Parallel connection attempts
     tasks = [manager.get_session(name) for name in active_servers]
     sessions = await asyncio.gather(*tasks, return_exceptions=True)
     
@@ -55,18 +58,18 @@ async def _build_registry():
     for name, session in zip(active_servers, sessions):
         if not session or isinstance(session, Exception): continue
         try:
-            # 타임아웃을 두고 도구 목록 획득
+            # Get tool list with timeout
             tools = await asyncio.wait_for(session.list_tools(), timeout=3.0)
             for t in tools.tools:
-                # 툴 이름 충돌 방지: 만약 이미 있으면 'server_toolname'으로 등록
+                # Prevent tool name conflicts: if already exists, register as 'server_toolname'
                 key = t.name
                 if key in new_registry:
-                    key = f"{name}_{t.name}" # 충돌 시 접두사 붙임
+                    key = f"{name}_{t.name}"  # Add prefix on collision
                 
                 args = list(t.inputSchema.get("properties", {}).keys())
                 new_registry[key] = {
                     "server": name,
-                    "real_name": t.name, # 실제 호출할 이름
+                    "real_name": t.name,  # Actual name to call
                     "desc": t.description[:100] if t.description else "No description",
                     "args": ", ".join(args)
                 }
@@ -78,7 +81,7 @@ async def _build_registry():
     TOOL_REGISTRY = new_registry
     logger.info(f"🗺️ Tool Registry Built: {len(TOOL_REGISTRY)} tools found.")
 
-# === 🌟 [핵심 2] 스마트 컨텍스트 주입 ===
+# === 🌟 [Core 2] Smart Context Injection ===
 @mcp.tool()
 async def get_initial_context(force: bool = False) -> str:
     """
@@ -86,17 +89,17 @@ async def get_initial_context(force: bool = False) -> str:
     Returns a 'Tool Manual' so you know what tools are available.
     Does NOT return full code context to save tokens (use 'read_file' if needed).
     """
-    # 1. 밸브 체크
+    # 1. Valve check (rate limiting)
     allowed, msg = valve.check(force)
     if not allowed: return msg
     
-    # 2. 레지스트리 빌드 (서버 깨우기)
+    # 2. Build registry (wake up servers)
     await _build_registry()
     
     if not TOOL_REGISTRY:
         return "⚠️ No tools found in connected MCP servers."
 
-    # 3. 메뉴판(Manual) 생성
+    # 3. Generate tool manual
     manual = [
         "=== 🎮 MCPV SMART CONSOLE ===",
         "You have access to the following tools. DO NOT use 'use_upstream_tool'.",
@@ -104,7 +107,7 @@ async def get_initial_context(force: bool = False) -> str:
         "--- Available Tools ---"
     ]
     
-    # 툴 목록을 예쁘게 정리
+    # Format tool list nicely
     for tool_name, info in TOOL_REGISTRY.items():
         manual.append(f"🔹 {tool_name}")
         manual.append(f"   └─ Args: {info['args']}")
@@ -117,28 +120,28 @@ async def get_initial_context(force: bool = False) -> str:
     
     return "\n".join(manual)
 
-# === 🌟 [핵심 3] 통합 실행 도구 (Flattened Execution) ===
-# === 🌟 [업그레이드] 스마트 실행 도구 (Auto-Correction 탑재) ===
+# === 🌟 [Core 3] Unified Execution Tool (Flattened Execution) ===
+# === 🌟 [Upgrade] Smart Execution Tool (with Auto-Correction) ===
 @mcp.tool()
 async def run_tool(tool_name: str, args: dict = {}) -> str:
     """
     Executes ANY tool from the available list.
     Smart Router: Automatically finds the correct server for the tool.
     """
-    # 1. 레지스트리 로드 (없으면 빌드)
+    # 1. Load registry (build if empty)
     if not TOOL_REGISTRY:
         await _build_registry()
         
-    # 2. 정확한 매칭 (Happy Path)
+    # 2. Exact match (Happy Path)
     info = TOOL_REGISTRY.get(tool_name)
     
-    # 3. [NEW] 매칭 실패 시: 에이전트 실수 교정 로직
+    # 3. [NEW] On match failure: Agent mistake correction logic
     if not info:
-        # A. 혹시 서버 이름을 도구 이름으로 착각했나? (예: context-7 -> context7)
-        # 툴 레지스트리에서 서버 목록 추출
+        # A. Did agent confuse server name with tool name? (e.g., context-7 -> context7)
+        # Extract server list from tool registry
         known_servers = set(t['server'] for t in TOOL_REGISTRY.values())
         
-        # 입력값과 서버명을 정규화(특수문자 제거, 소문자)해서 비교
+        # Normalize input and server names (remove special chars, lowercase) for comparison
         normalized_input = tool_name.replace("-", "").replace("_", "").lower()
         
         target_server = None
@@ -148,7 +151,7 @@ async def run_tool(tool_name: str, args: dict = {}) -> str:
                 break
         
         if target_server:
-            # 해당 서버에 속한 진짜 도구들을 찾아서 제안
+            # Find actual tools belonging to this server and suggest them
             server_tools = [
                 f"'{name}' (Args: {i['args']})" 
                 for name, i in TOOL_REGISTRY.items() 
@@ -161,7 +164,7 @@ async def run_tool(tool_name: str, args: dict = {}) -> str:
                 f"👉 Please retry 'run_tool' with one of the tool names above."
             )
 
-        # B. 단순히 도구 이름 오타인가? (유사도 검색)
+        # B. Simple typo in tool name? (similarity search)
         candidates = [k for k in TOOL_REGISTRY.keys() if tool_name in k or k in tool_name]
         if candidates:
             return f"❌ Tool '{tool_name}' not found. Did you mean one of these?\n- " + "\n- ".join(candidates)
@@ -234,13 +237,33 @@ def list_directory(path: str = ".") -> str:
     """Lists files in a directory."""
     try:
         p = (ROOT_DIR / path).resolve()
+        
+        # Security: Check path is within allowed root
+        if not p.is_relative_to(ROOT_DIR): 
+            logger.warning(f"Access denied for path outside root: {path}")
+            return "⛔ Access Denied: Path outside project root"
+        
+        # Security: Reject symlinks to prevent escape
+        if p.is_symlink():
+            logger.warning(f"Symlink access denied: {path}")
+            return "⛔ Access Denied: Symlinks not allowed"
+        
+        if not p.exists():
+            return f"❌ Directory not found: {path}"
+        
+        if not p.is_dir():
+            return f"❌ Not a directory: {path}"
+        
         out = []
         with os.scandir(p) as it:
             for e in it:
                 if not e.name.startswith("."): out.append(e.name)
-        return "\n".join(out)
+        return "\n".join(out) if out else "(empty directory)"
+    except PermissionError:
+        return f"❌ Permission denied: {path}"
     except Exception as e: 
-        return str(e)
+        logger.error(f"Error listing directory '{path}': {e}")
+        return f"❌ Error: {e}"
 
 
 @mcp.tool()

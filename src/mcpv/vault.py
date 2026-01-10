@@ -10,7 +10,7 @@ from mcp.client.session import ClientSession
 from mcp.client.stdio import stdio_client
 from contextlib import AsyncExitStack
 
-# [Import 호환성 처리]
+# [Import compatibility handling]
 try:
     from mcp.types import StdioServerParameters
 except ImportError:
@@ -61,11 +61,11 @@ class VaultManager:
         self.stack = AsyncExitStack()
         self.sessions = {}
 
-    def install(self, force: bool = False):
-        """1. MCP Config 하이재킹 및 경로 고정"""
+    def install(self, force: bool = False) -> None:
+        """Installs mcpv: hijacks MCP config and locks project root path."""
         success = self._hijack_config(force)
         if success:
-            """2. 부스팅 스크립트 설치"""
+            # Step 2: Install booster script
             self._install_booster()
             print("✨ Installation & Path Lock Complete!")
 
@@ -157,13 +157,24 @@ exit
         if not desktop.exists():
             print(f"⚠️  Desktop folder not found at {desktop}", file=sys.stderr)
             return
-            
-        link_path = str(desktop / f"{name}.lnk")
         
-        # Escape backslashes for VBS
-        target_escaped = target.replace("\\", "\\\\")
-        link_escaped = link_path.replace("\\", "\\\\")
-        icon_escaped = icon.replace("\\", "\\\\")
+        # Sanitize name to prevent path injection (only alphanumeric, spaces, parentheses)
+        import re
+        safe_name = re.sub(r'[^\w\s\(\)\-]', '', name)
+        if not safe_name:
+            print("⚠️  Invalid shortcut name after sanitization", file=sys.stderr)
+            return
+            
+        link_path = str(desktop / f"{safe_name}.lnk")
+        
+        def escape_vbs_string(s: str) -> str:
+            """Escape a string for safe use in VBS. Handles backslashes and quotes."""
+            # First escape backslashes, then escape double quotes
+            return s.replace("\\", "\\\\").replace('"', '""')
+        
+        target_escaped = escape_vbs_string(target)
+        link_escaped = escape_vbs_string(link_path)
+        icon_escaped = escape_vbs_string(icon)
         
         vbs_script = f'''On Error Resume Next
 Set oWS = WScript.CreateObject("WScript.Shell")

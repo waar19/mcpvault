@@ -78,5 +78,58 @@ def reset_stats():
     print("✅ Statistics reset successfully.")
 
 
+@app.command()
+def uninstall():
+    """Uninstalls mcpv and restores original MCP config."""
+    import shutil
+    import os
+    
+    print("🗑️  Uninstalling MCP Vault...")
+    
+    restored = False
+    
+    # 1. Restore original config
+    if BACKUP_FILE.exists():
+        try:
+            shutil.copy(BACKUP_FILE, CONFIG_FILE)
+            print("✅ Original MCP config restored.")
+            restored = True
+        except Exception as e:
+            print(f"⚠️  Could not restore config: {e}")
+    else:
+        # Remove mcpv config entirely
+        if CONFIG_FILE.exists():
+            try:
+                CONFIG_FILE.unlink()
+                print("✅ MCP Vault config removed.")
+            except Exception as e:
+                print(f"⚠️  Could not remove config: {e}")
+    
+    # 2. Remove root path file
+    if ROOT_PATH_FILE.exists():
+        try:
+            ROOT_PATH_FILE.unlink()
+            print("✅ Root path lock removed.")
+        except Exception as e:
+            print(f"⚠️  Could not remove root path: {e}")
+    
+    # 3. Remove desktop shortcut
+    desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+    shortcut = desktop / "Antigravity Boost (mcpv).lnk"
+    if shortcut.exists():
+        try:
+            shortcut.unlink()
+            print("✅ Desktop shortcut removed.")
+        except Exception as e:
+            print(f"⚠️  Could not remove shortcut: {e}")
+    
+    # 4. Reset dashboard
+    dashboard.reset()
+    
+    print("\n🏁 Uninstallation complete!")
+    if restored:
+        print("   Your original MCP servers are now active again.")
+
+
 if __name__ == "__main__":
     app()
