@@ -114,7 +114,21 @@ def uninstall():
             print(f"⚠️  Could not remove root path: {e}")
     
     # 3. Remove desktop shortcut
-    desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+    # Use Windows Shell API to get real desktop path (handles OneDrive redirection)
+    import platform
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            CSIDL_DESKTOP = 0x0010
+            buf = ctypes.create_unicode_buffer(wintypes.MAX_PATH)
+            ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_DESKTOP, None, 0, buf)
+            desktop = Path(buf.value) if buf.value else Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+        except Exception:
+            desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+    else:
+        desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+    
     shortcut = desktop / "Antigravity Boost (mcpv).lnk"
     if shortcut.exists():
         try:

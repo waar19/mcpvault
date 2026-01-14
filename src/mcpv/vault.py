@@ -56,6 +56,30 @@ def _get_antigravity_paths() -> tuple[Path, Path, Path]:
 
 ANTIGRAVITY_PATH, ANTIGRAVITY_EXE, BOOSTER_SCRIPT = _get_antigravity_paths()
 
+
+def _get_desktop_path() -> Path:
+    """Gets the real desktop path, handling OneDrive redirection on Windows."""
+    if CURRENT_PLATFORM == "Windows":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            
+            # CSIDL_DESKTOPDIRECTORY = 0x0010
+            CSIDL_DESKTOP = 0x0010
+            SHGFP_TYPE_CURRENT = 0
+            
+            buf = ctypes.create_unicode_buffer(wintypes.MAX_PATH)
+            ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_DESKTOP, None, SHGFP_TYPE_CURRENT, buf)
+            
+            if buf.value:
+                return Path(buf.value)
+        except Exception:
+            pass  # Fall back to default
+    
+    # Fallback for non-Windows or if API fails
+    return Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+
+
 class VaultManager:
     def __init__(self):
         self.stack = AsyncExitStack()
@@ -152,7 +176,7 @@ exit
 
     def _create_shortcut_vbs(self, target: str, name: str, icon: str):
         """Creates a desktop shortcut using VBS. Handles errors gracefully."""
-        desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+        desktop = _get_desktop_path()
         
         if not desktop.exists():
             print(f"⚠️  Desktop folder not found at {desktop}", file=sys.stderr)
@@ -168,9 +192,9 @@ exit
         link_path = str(desktop / f"{safe_name}.lnk")
         
         def escape_vbs_string(s: str) -> str:
-            """Escape a string for safe use in VBS. Handles backslashes and quotes."""
-            # First escape backslashes, then escape double quotes
-            return s.replace("\\", "\\\\").replace('"', '""')
+            """Escape a string for safe use in VBS. Only double quotes need escaping."""
+            # In VBS, only double quotes need to be doubled, backslashes are literal
+            return s.replace('"', '""')
         
         target_escaped = escape_vbs_string(target)
         link_escaped = escape_vbs_string(link_path)
@@ -181,7 +205,7 @@ Set oWS = WScript.CreateObject("WScript.Shell")
 sLinkFile = "{link_escaped}"
 Set oLink = oWS.CreateShortcut(sLinkFile)
 oLink.TargetPath = "cmd.exe"
-oLink.Arguments = "/c """"{target_escaped}""""
+oLink.Arguments = "/c ""{target_escaped}"""
 oLink.IconLocation = "{icon_escaped},0"
 oLink.WindowStyle = 7
 oLink.Save
