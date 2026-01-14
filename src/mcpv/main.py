@@ -3,9 +3,9 @@ import typer
 import asyncio
 import json
 from pathlib import Path
-from .vault import manager, CONFIG_FILE, ROOT_PATH_FILE, BACKUP_FILE
-from .server import mcp
-from .dashboard import dashboard
+from mcpv.vault import manager, CONFIG_FILE, ROOT_PATH_FILE, BACKUP_FILE
+from mcpv.server import mcp
+from mcpv.dashboard import dashboard
 
 app = typer.Typer(help="MCP Vault: Performance booster for AI agents")
 

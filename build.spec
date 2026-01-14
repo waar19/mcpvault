@@ -1,12 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import copy_metadata
+
+datas = []
+datas += copy_metadata('fastmcp')
+datas += copy_metadata('mcp')
+datas += copy_metadata('typer')
+
 block_cipher = None
 
 a = Analysis(
     ['src/mcpv/main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=['mcpv.vault', 'mcpv.server', 'mcpv.health', 'mcpv.dashboard', 'mcpv.valve', 'mcpv.cache'],
     hookspath=[],
     hooksconfig={},
