@@ -25,7 +25,7 @@ class TestVaultConfig:
                     
                     # Force install
                     with patch('mcpv.vault.ANTIGRAVITY_PATH', tmp_path):
-                        manager._hijack_config(force=True)
+                        manager._hijack_config(force=True, target="antigravity")
                     
                     # Check backup was created
                     backup_file = tmp_path / "mcp_config.original.json"
@@ -43,7 +43,7 @@ class TestVaultConfig:
                 from mcpv.vault import VaultManager
                 manager = VaultManager()
                 
-                result = manager._hijack_config(force=False)
+                result = manager._hijack_config(force=False, target="antigravity")
                 
                 assert result is False
     
@@ -61,7 +61,7 @@ class TestVaultConfig:
                             
                             from mcpv.vault import VaultManager
                             manager = VaultManager()
-                            manager._hijack_config(force=False)
+                            manager._hijack_config(force=False, target="antigravity")
                             
                             root_file = tmp_path / "root_path.txt"
                             assert root_file.exists()

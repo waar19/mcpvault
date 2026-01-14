@@ -12,11 +12,12 @@ app = typer.Typer(help="MCP Vault: Performance booster for AI agents")
 
 @app.command()
 def install(
-    force: bool = typer.Option(False, "--force", "-f", help="Force install even if MCP servers exist.")
+    force: bool = typer.Option(False, "--force", "-f", help="Force install even if MCP servers exist."),
+    target: str = typer.Option("antigravity", "--target", "-t", help="Target environment to install to (antigravity, claude, vscode)")
 ):
-    """Installs mcpv as the primary gateway in Antigravity."""
-    print("🛡️  Installing MCP Vault...")
-    manager.install(force=force)
+    """Installs mcpv as the primary gateway in Antigravity or other clients."""
+    print(f"🛡️  Installing MCP Vault for {target}...")
+    manager.install(force=force, target=target)
     print("👉 Check the output above.")
 
 

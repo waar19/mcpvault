@@ -17,7 +17,7 @@ class TestInstallCommand:
             
             result = runner.invoke(app, ["install"])
             
-            mock_manager.install.assert_called_once_with(force=False)
+            mock_manager.install.assert_called_once_with(force=False, target="antigravity")
     
     def test_install_force_flag(self):
         """Should pass force=True when --force is used."""
@@ -26,7 +26,7 @@ class TestInstallCommand:
             
             result = runner.invoke(app, ["install", "--force"])
             
-            mock_manager.install.assert_called_once_with(force=True)
+            mock_manager.install.assert_called_once_with(force=True, target="antigravity")
 
 
 class TestStatusCommand:

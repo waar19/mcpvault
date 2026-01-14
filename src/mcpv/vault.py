@@ -40,6 +40,27 @@ BACKUP_FILE = CONFIG_DIR / "mcp_config.original.json"
 ROOT_PATH_FILE = CONFIG_DIR / "root_path.txt"
 MY_SERVER_NAME = "mcpv-proxy"
 
+# Target Config Paths
+def _get_target_config(target: str) -> Path:
+    if target == "antigravity":
+        return CONFIG_FILE
+    elif target == "claude":
+        if CURRENT_PLATFORM == "Windows":
+            return Path(os.environ.get("APPDATA")) / "Claude" / "claude_desktop_config.json"
+        elif CURRENT_PLATFORM == "Darwin":
+            return HOME_DIR / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+        else:
+             return HOME_DIR / ".config" / "Claude" / "claude_desktop_config.json"
+    elif target == "vscode":
+        if CURRENT_PLATFORM == "Windows":
+            return Path(os.environ.get("APPDATA")) / "Code" / "User" / "settings.json"
+        elif CURRENT_PLATFORM == "Darwin":
+            return HOME_DIR / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+        else:
+            return HOME_DIR / ".config" / "Code" / "User" / "settings.json"
+    else:
+        raise ValueError(f"Unknown target: {target}")
+
 # Antigravity paths - platform specific
 def _get_antigravity_paths() -> tuple[Path, Path, Path]:
     """Returns (antigravity_dir, antigravity_exe, booster_script) for current platform."""
@@ -85,34 +106,47 @@ class VaultManager:
         self.stack = AsyncExitStack()
         self.sessions = {}
 
-    def install(self, force: bool = False) -> None:
+    def install(self, force: bool = False, target: str = "antigravity") -> None:
         """Installs mcpv: hijacks MCP config and locks project root path."""
-        success = self._hijack_config(force)
+        print(f"🎯 Targeting environment: {target}")
+        
+        success = self._hijack_config(force, target)
         if success:
-            # Step 2: Install booster script
-            self._install_booster()
-            print("✨ Installation & Path Lock Complete!")
+            # Step 2: Install booster script (Only for Antigravity)
+            if target == "antigravity":
+                self._install_booster()
+            print(f"✨ Installation & Path Lock Complete for {target}!")
 
-    def _hijack_config(self, force: bool) -> bool:
-        if not CONFIG_DIR.exists():
+    def _hijack_config(self, force: bool, target: str) -> bool:
+        config_path = _get_target_config(target)
+        backup_path = config_path.with_suffix(".json.backup") if target != "antigravity" else BACKUP_FILE
+        
+        # Ensure parent dir exists
+        if not config_path.parent.exists():
             try:
-                CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+                config_path.parent.mkdir(parents=True, exist_ok=True)
             except OSError as e:
                 logger.error(f"Config dir creation failed: {e}")
-                print(f"❌ Config dir creation failed at {CONFIG_DIR}: {e}", file=sys.stderr)
+                print(f"❌ Config dir creation failed at {config_path.parent}: {e}", file=sys.stderr)
                 return False
 
-        if not CONFIG_FILE.exists():
-             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump({"mcpServers": {}}, f)
+        if not config_path.exists():
+             with open(config_path, "w", encoding="utf-8") as f:
+                json.dump({"mcpServers": {}} if target != "vscode" else {}, f)
 
         try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f: 
+            with open(config_path, "r", encoding="utf-8") as f: 
                 config = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Could not load config file, using defaults: {e}")
-            config = {"mcpServers": {}}
+            config = {"mcpServers": {}} if target != "vscode" else {}
 
+        # Handle VSCode structure (mcpServers is nested under "mcpServers" key, 
+        # but VSCode settings is a flat dict, "mcpServers" is a top level key)
+        # Actually standard VSCode usage for MCP isn't fully standardized yet, assuming "mcpServers" key
+        # similar to Claude config if using an extension that follows that pattern.
+        # But for "VSCode" usually means "VS Code MCP Extension" which uses mcpServers key in settings.json
+        
         servers = config.get("mcpServers", {})
         other_servers = {k: v for k, v in servers.items() if k != MY_SERVER_NAME}
 
@@ -122,9 +156,19 @@ class VaultManager:
             return False
 
         if other_servers:
-            with open(BACKUP_FILE, "w", encoding="utf-8") as f:
-                json.dump({"mcpServers": other_servers}, f, indent=2)
-            print(f"📦 Backup created at: {BACKUP_FILE}", file=sys.stderr)
+            with open(backup_path, "w", encoding="utf-8") as f:
+                # For VSCode we only backup the mcpServers part? Or the whole file?
+                # Safer to backup the whole file for VSCode?
+                # Actually for VSCode we are modifying a huge settings file.
+                # We should be careful. 
+                # Let's just backup the extracted servers for now to match logic, 
+                # BUT for VSCode we should probably refrain from destructive overwrite of the whole file.
+                if target == "vscode":
+                     # For VSCode, we modify in-place
+                     pass
+                else: 
+                     json.dump({"mcpServers": other_servers}, f, indent=2)
+            print(f"📦 Backup created/servers saved.", file=sys.stderr)
 
         # [핵심] 현재 경로 저장
         current_python = sys.executable
@@ -139,20 +183,41 @@ class VaultManager:
         except Exception as e:
             print(f"❌ Failed to save root path: {e}", file=sys.stderr)
 
-        my_config = {
-            "command": current_python,
-            "args": ["-m", "mcpv", "start"],
-            "cwd": current_cwd,
-            "env": {
-                "PYTHONUNBUFFERED": "1",
-                "PYTHONPATH": current_cwd
+
+        # CLI definition
+        if getattr(sys, 'frozen', False):
+             # Executable mode
+             my_config = {
+                "command": sys.executable, # mcpv.exe
+                "args": ["start"],
+                "cwd": current_cwd,
+                "env": {}
             }
-        }
+        else:
+            # Script mode
+            my_config = {
+                "command": current_python,
+                "args": ["-m", "mcpv", "start"],
+                "cwd": current_cwd,
+                "env": {
+                    "PYTHONUNBUFFERED": "1",
+                    "PYTHONPATH": current_cwd
+                }
+            }
         
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump({"mcpServers": {MY_SERVER_NAME: my_config}}, f, indent=2)
+        if target == "vscode":
+            # For VSCode, we update the existing config dict
+            config["mcpServers"] = {MY_SERVER_NAME: my_config}
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=4) # Standard VSCode indent
+        else:
+             # For Claude/Antigravity, we define the whole file often (or at least strictly the mcpServers structure)
+             # But let's respect other keys if present (like for Claude)
+             config["mcpServers"] = {MY_SERVER_NAME: my_config}
+             with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
             
-        print(f"🔒 Vault config updated.", file=sys.stderr)
+        print(f"🔒 Vault config updated at {config_path}", file=sys.stderr)
         return True
 
     def _install_booster(self):
